@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="km">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b1921">
+  <title>ប្រព័ន្ធស្ទង់មតិការអភិវឌ្ឍសមត្ថភាពបុគ្គលិក</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="brand">
+      <div class="brand-mark">✦</div>
+      <div><h1>ប្រព័ន្ធស្ទង់មតិការអភិវឌ្ឍសមត្ថភាពបុគ្គលិក</h1>
+      <p>សម្រាប់ការប្រមូលមតិយោបល់ និងតម្រូវការអភិវឌ្ឍសមត្ថភាពបុគ្គលិក</p></div>
+    </header>
+    <section id="loginView" class="panel login-panel">
+      <h2>ចូលប្រើប្រាស់</h2><p class="muted">សូមប្រើលេខសម្គាល់បុគ្គលិក និងពាក្យសម្ងាត់របស់អ្នក</p>
+      <form id="loginForm">
+        <label>លេខសម្គាល់បុគ្គលិក (Staff ID)</label>
+        <input id="staffId" autocomplete="username" placeholder="PPWSA-0000" required>
+        <label>ពាក្យសម្ងាត់</label>
+        <div class="password-wrap"><input id="password" type="password" autocomplete="current-password" required><button type="button" id="togglePassword" class="eye">បង្ហាញ</button></div>
+        <button class="primary" type="submit">ចូលប្រើប្រាស់</button>
+        <p id="loginMessage" class="message" role="status"></p>
+      </form>
+      <button class="text-button" id="firstTime">ចូលប្រើលើកដំបូង / បង្កើតពាក្យសម្ងាត់</button>
+    </section>
+
+    <section id="setupView" class="panel hidden">
+      <h2>បង្កើតពាក្យសម្ងាត់</h2>
+      <p class="muted">សម្រាប់បុគ្គលិកដែលមានលេខសម្គាល់ក្នុងបញ្ជីប៉ុណ្ណោះ។ ត្រូវការលេខកូដសកម្មភាពពីអ្នកគ្រប់គ្រង។</p>
+      <form id="setupForm">
+        <label>លេខសម្គាល់បុគ្គលិក</label><input id="setupStaffId" placeholder="PPWSA-0000" required>
+        <label>លេខកូដសកម្មភាព</label><input id="activationCode" autocomplete="one-time-code" required>
+        <label>ពាក្យសម្ងាត់ថ្មី</label><input id="newPassword" type="password" minlength="8" required>
+        <label>បញ្ជាក់ពាក្យសម្ងាត់</label><input id="confirmPassword" type="password" minlength="8" required>
+        <button class="primary" type="submit">បង្កើតគណនី</button><p id="setupMessage" class="message"></p>
+      </form><button class="text-button" data-back>ត្រឡប់ទៅចូលប្រើប្រាស់</button>
+    </section>
+
+    <section id="surveyView" class="hidden">
+      <div class="profile panel"><div><small>សូមស្វាគមន៍</small><h2 id="employeeName">បុគ្គលិក</h2><p id="employeeMeta" class="muted"></p></div><button id="logout" class="secondary">ចាកចេញ</button></div>
+      <section class="panel">
+        <div class="survey-heading"><div><span class="eyebrow">កម្រងសំណួរ</span><h2>ស្ទង់មតិការអភិវឌ្ឍសមត្ថភាពបុគ្គលិក</h2><p class="muted">សូមជ្រើសរើសចម្លើយដែលសមស្របនឹងតម្រូវការរបស់អ្នក។</p></div><span class="counter">៤ សំណួរ</span></div>
+        <form id="surveyForm">
+          <fieldset><legend>១. តើអ្នកចង់រៀនជំនាញអ្វីបន្ថែម? <em>*</em></legend>
+            <div id="skillsOptions" class="options"></div>
+            <input id="otherSkill" class="other-input hidden" placeholder="សូមសរសេរជំនាញផ្សេងៗនៅទីនេះ">
+          </fieldset>
+          <fieldset><legend>២. តើអ្នកចង់អភិវឌ្ឍសមត្ថភាពអ្វីបន្ថែមក្នុងការងារ? <em>*</em></legend><div id="developmentOptions" class="options"></div></fieldset>
+          <fieldset><legend>៣. តើអ្នកចង់ឱ្យអង្គភាពជួយគាំទ្រអ្វីខ្លះ ដើម្បីបង្កើនសមត្ថភាពការងារ? <em>*</em></legend><div id="supportOptions" class="options"></div></fieldset>
+          <fieldset><legend>៤. តើអ្នកមានសំណូមពរ ឬមតិយោបល់បន្ថែមអ្វីខ្លះ?</legend><textarea id="comments" rows="4" placeholder="សូមសរសេរមតិយោបល់របស់អ្នក..."></textarea></fieldset>
+          <button class="primary" type="submit">បញ្ជូនចម្លើយ</button><p id="surveyMessage" class="message"></p>
+        </form>
+      </section>
+    </section>
+    <footer>ប្រព័ន្ធស្ទង់មតិបុគ្គលិក • រក្សាការសម្ងាត់នៃចម្លើយរបស់អ្នក</footer>
+  </main>
+  <script src="assets/js/config.js"></script><script src="assets/js/app.js"></script>
+</body></html>
