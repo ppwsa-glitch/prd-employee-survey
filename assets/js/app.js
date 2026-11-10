@@ -1,77 +1,122 @@
 
 /* =========================================================
-   EPDS FRONTEND - PHASE 2
-   Backend: Google Apps Script Web App v2.1
-   ========================================================= */
+   EPDS - Employee Development Survey
+   Frontend Application v2.2
+   Backend: Google Apps Script v2.1
+========================================================= */
 
 (() => {
   "use strict";
 
-  const API_URL = window.APP_CONFIG?.API_URL;
-
-  const state = {
-    token: null,
-    role: null,
-    profile: null,
-    responses: []
-  };
+  const CONFIG = window.APP_CONFIG || {};
+  const API_URL = CONFIG.API_URL;
 
   const $ = (id) => document.getElementById(id);
 
-  // ---------------- API ----------------
+  let currentUser = null;
+  let currentToken = null;
+  let allResponses = [];
+
+  /* =========================
+     VIEW MANAGEMENT
+  ========================= */
+
+  const views = [
+    "loginView",
+    "registerView",
+    "employeeView",
+    "adminView"
+  ];
+
+  function showView(viewId) {
+    views.forEach(id => {
+      const element = $(id);
+      if (element) element.classList.toggle("hidden", id !== viewId);
+    });
+  }
+
+  function showMessage(id, message, type = "error") {
+    const element = $(id);
+    if (!element) return;
+
+    element.textContent = message;
+    element.className = `message ${type}`;
+    element.style.display = message ? "block" : "none";
+  }
+
+  function clearMessage(id) {
+    showMessage(id, "");
+  }
+
+  function setLoading(show, message = "កំពុងដំណើរការ...") {
+    const overlay = $("loadingOverlay");
+    if (!overlay) return;
+
+    overlay.classList.toggle("hidden", !show);
+
+    const text = $("loadingText");
+    if (text) text.textContent = message;
+  }
+
+  function setButtonLoading(buttonId, loading, text) {
+    const button = $(buttonId);
+    if (!button) return;
+
+    if (loading) {
+      button.dataset.originalText = button.textContent;
+      button.disabled = true;
+      button.textContent = text || "កំពុងដំណើរការ...";
+    } else {
+      button.disabled = false;
+      button.textContent = button.dataset.originalText || text || "Submit";
+    }
+  }
+
+  /* =========================
+     API CONNECTION
+  ========================= */
 
   async function api(action, payload = {}) {
-    if (!API_URL) throw new Error("API URL មិនត្រូវបានកំណត់ក្នុង config.js ទេ។");
+    if (!API_URL) {
+      throw new Error("មិនទាន់កំណត់ API_URL ក្នុង config.js ទេ។");
+    }
 
     const response = await fetch(API_URL, {
       method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action, ...payload })
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8"
+      },
+      body: JSON.stringify({
+        action,
+        ...payload
+      })
     });
 
-    const json = await response.json();
+    if (!response.ok) {
+      throw new Error(`Server Error: HTTP ${response.status}`);
+    }
+
+    let json;
+
+    try {
+      json = await response.json();
+    } catch {
+      throw new Error("មិនអាចអានទិន្នន័យពី Server បានទេ។");
+    }
 
     if (!json.success) {
-      throw new Error(json.message || "មានបញ្ហាក្នុងការភ្ជាប់ទៅ Server។");
+      throw new Error(json.message || "មានបញ្ហាក្នុងការដំណើរការ។");
     }
 
     return json.data || {};
   }
 
-  // ---------------- UI HELPERS ----------------
-
-  function showView(viewId) {
-    ["loginView", "employeeView", "adminView"].forEach((id) => {
-      $(id)?.classList.toggle("hidden", id !== viewId);
-    });
-  }
-
-  function showMessage(id, message, type = "error") {
-    const el = $(id);
-    if (!el) return;
-
-    el.textContent = message || "";
-    el.className = message ? `message ${type}` : "message";
-  }
-
-  function setLoading(button, loading, label) {
-    if (!button) return;
-    button.disabled = loading;
-    if (loading) {
-      button.dataset.originalText = button.textContent;
-      button.textContent = "កំពុងដំណើរការ...";
-    } else {
-      button.textContent = label || button.dataset.originalText || "បញ្ជូន";
-    }
-  }
-
-  function checkedValues(name) {
-    return [...document.querySelectorAll(`input[name="${name}"]:checked`)]
-      .map((el) => el.value);
-  }
+  /* =========================
+     SAFE DISPLAY HELPERS
+  ========================= */
 
   function escapeHTML(value) {
-    return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    return String(value ?? "").replace(/[&<>"']/g, char => ({
       "&": "&amp;",
       "<": "&lt;",
       ">": "&gt;",
@@ -80,97 +125,192 @@
     })[char]);
   }
 
-  function firstValue(obj, keys, fallback = "") {
-    for (const key of keys) {
-      if (obj && obj[key] !== undefined && obj[key] !== null) {
-        return obj[key];
-      }
-    }
-    return fallback;
+  function displayValue(value) {
+    if (Array.isArray(value)) return value.join(", ");
+    if (value === null || value === undefined || value === "") return "-";
+    if (typeof value === "object") return JSON.stringify(value);
+    return String(value);
   }
 
-  // ---------------- LOGIN ----------------
+  function formatDate(value) {
+    if (!value) return "-";
 
-  $("loginForm")?.addEventListener("submit", async (event) => {
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return String(value);
+    }
+
+    return date.toLocaleDateString("km-KH", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    });
+  }
+
+  function numberFormat(value) {
+    return Number(value || 0).toLocaleString("en-US");
+  }
+
+  /* =========================
+     SESSION MANAGEMENT
+  ========================= */
+
+  function saveSession(token, user) {
+    currentToken = token;
+    currentUser = user;
+
+    sessionStorage.setItem("epds_token", token);
+    sessionStorage.setItem("epds_user", JSON.stringify(user));
+  }
+
+  function clearSession() {
+    currentToken = null;
+    currentUser = null;
+    allResponses = [];
+
+    sessionStorage.removeItem("epds_token");
+    sessionStorage.removeItem("epds_user");
+  }
+
+  function restoreSession() {
+    const token = sessionStorage.getItem("epds_token");
+    const user = sessionStorage.getItem("epds_user");
+
+    if (!token || !user) return false;
+
+    try {
+      currentToken = token;
+      currentUser = JSON.parse(user);
+      return true;
+    } catch {
+      clearSession();
+      return false;
+    }
+  }
+
+  function logout() {
+    clearSession();
+    showView("loginView");
+
+    if ($("loginPassword")) $("loginPassword").value = "";
+    if ($("loginIdentifier")) $("loginIdentifier").value = "";
+
+    clearMessage("loginMessage");
+  }
+
+  /* =========================
+     LOGIN - AUTOMATIC ROLE
+  ========================= */
+
+  async function handleLogin(event) {
     event.preventDefault();
+    clearMessage("loginMessage");
 
     const identifier = $("loginIdentifier").value.trim();
     const password = $("loginPassword").value;
-    const button = $("loginBtn");
 
     if (!identifier || !password) {
-      showMessage("loginMessage", "សូមបញ្ចូលព័ត៌មាន Login ឱ្យបានគ្រប់គ្រាន់។");
+      showMessage("loginMessage", "សូមបញ្ចូលព័ត៌មានឱ្យបានគ្រប់គ្រាន់។");
       return;
     }
 
-    setLoading(button, true);
+    setButtonLoading("loginBtn", true, "កំពុងផ្ទៀងផ្ទាត់...");
 
     try {
-      const result = await api("unifiedLogin", { identifier, password });
+      const result = await api("unifiedLogin", {
+        identifier,
+        password
+      });
 
-      if (!result.token) {
-        throw new Error("Server មិនបានផ្តល់ Login Token។ សូមពិនិត្យ Backend។");
+      if (!result.token || !result.role) {
+        throw new Error("Server មិនបានបញ្ជូនព័ត៌មាន Login ត្រឹមត្រូវទេ។");
       }
 
-      state.token = result.token;
+      if (result.role === "EMPLOYEE") {
+        const profile = result.profile || {};
 
-      // Detect role from backend response first.
-      const backendRole = String(result.role || result.userRole || "").toUpperCase();
+        const user = {
+          role: "EMPLOYEE",
+          staffId: profile.staffId || "",
+          employeeName: profile.employeeName || "",
+          department: profile.department || "",
+          position: profile.position || ""
+        };
 
-      if (backendRole === "ADMIN" || (!result.profile && identifier.includes("@"))) {
-        state.role = "ADMIN";
-        state.profile = result.profile || { email: identifier };
-        showView("adminView");
-        await loadAdminDashboard();
+        saveSession(result.token, user);
+        showEmployeeDashboard(user);
+
+      } else if (result.role === "ADMIN") {
+
+        const user = {
+          role: "ADMIN",
+          email: result.email || identifier,
+          adminRole: result.adminRole || "ADMIN"
+        };
+
+        saveSession(result.token, user);
+        showAdminDashboard(user);
+
       } else {
-        state.role = "EMPLOYEE";
-        state.profile = result.profile || {};
-        renderEmployeeProfile(state.profile);
-        showView("employeeView");
+        throw new Error("Role មិនត្រឹមត្រូវ។");
       }
-
-      $("loginPassword").value = "";
-      showMessage("loginMessage", "");
 
     } catch (error) {
-      showMessage("loginMessage", error.message || "Login មិនបានជោគជ័យ។");
+      showMessage("loginMessage", error.message);
     } finally {
-      setLoading(button, false, "ចូលប្រើប្រាស់ →");
+      setButtonLoading("loginBtn", false);
     }
-  });
+  }
 
-  // ---------------- EMPLOYEE REGISTRATION ----------------
+  /* =========================
+     EMPLOYEE DASHBOARD
+  ========================= */
 
-  $("showRegisterBtn")?.addEventListener("click", () => {
-    $("registerCard")?.classList.remove("hidden");
-    $("registerCard")?.scrollIntoView({ behavior: "smooth", block: "center" });
-  });
+  function showEmployeeDashboard(user) {
+    showView("employeeView");
 
-  $("backToLoginBtn")?.addEventListener("click", () => {
-    $("registerCard")?.classList.add("hidden");
-    showMessage("registerMessage", "");
-  });
+    $("employeeName").textContent = user.employeeName || "Employee";
+    $("employeeStaffId").textContent = user.staffId || "";
 
-  $("registerForm")?.addEventListener("submit", async (event) => {
+    $("profileName").textContent = user.employeeName || "-";
+    $("profileStaffId").textContent = user.staffId || "-";
+    $("profileDepartment").textContent = user.department || "-";
+    $("profilePosition").textContent = user.position || "-";
+
+    $("surveyForm")?.reset();
+    clearMessage("surveyMessage");
+  }
+
+  /* =========================
+     ACCOUNT REGISTRATION
+  ========================= */
+
+  async function handleRegistration(event) {
     event.preventDefault();
+    clearMessage("registerMessage");
 
     const staffId = $("registerStaffId").value.trim();
     const activationCode = $("activationCode").value.trim();
-    const password = $("newPassword").value;
+    const password = $("registerPassword").value;
     const confirmPassword = $("confirmPassword").value;
-    const button = $("registerBtn");
 
-    if (password.length < 8) {
-      showMessage("registerMessage", "Password ត្រូវមានយ៉ាងតិច ៨ តួអក្សរ។");
+    if (!staffId || !activationCode || !password || !confirmPassword) {
+      showMessage("registerMessage", "សូមបំពេញព័ត៌មានទាំងអស់។");
       return;
     }
 
     if (password !== confirmPassword) {
-      showMessage("registerMessage", "Password និង Confirm Password មិនដូចគ្នាទេ។");
+      showMessage("registerMessage", "Password ទាំងពីរមិនដូចគ្នាទេ។");
       return;
     }
 
-    setLoading(button, true);
+    if (password.length < 6) {
+      showMessage("registerMessage", "Password ត្រូវមានយ៉ាងហោចណាស់ ៦ តួអក្សរ។");
+      return;
+    }
+
+    setButtonLoading("registerBtn", true, "កំពុងបង្កើតគណនី...");
 
     try {
       await api("activateAccount", {
@@ -179,154 +319,196 @@
         password
       });
 
+      $("registerForm").reset();
+
       showMessage(
         "registerMessage",
-        "បង្កើតគណនីបានជោគជ័យ! អ្នកអាច Login បានហើយ។",
+        "បង្កើតគណនីបានជោគជ័យ! សូមចូលប្រើប្រាស់ប្រព័ន្ធ។",
         "success"
       );
 
-      $("registerForm").reset();
+      setTimeout(() => {
+        showView("loginView");
+        $("loginIdentifier").value = staffId;
+        clearMessage("registerMessage");
+      }, 1800);
 
     } catch (error) {
-      showMessage("registerMessage", error.message || "មិនអាចបង្កើតគណនីបានទេ។");
+      showMessage("registerMessage", error.message);
     } finally {
-      setLoading(button, false, "បង្កើតគណនី");
+      setButtonLoading("registerBtn", false);
     }
-  });
-
-  // ---------------- EMPLOYEE PROFILE ----------------
-
-  function renderEmployeeProfile(profile) {
-    const name = firstValue(profile, ["employeeName", "name"], "Employee");
-    const staffId = firstValue(profile, ["staffId", "Staff_ID"], "");
-    const department = firstValue(profile, ["department", "Department"], "");
-    const position = firstValue(profile, ["position", "Position"], "");
-
-    $("employeeName").textContent = name;
-    $("employeeMeta").textContent =
-      [staffId, department, position].filter(Boolean).join(" · ");
-    $("employeeAvatar").textContent = name.trim().charAt(0).toUpperCase() || "E";
   }
 
-  // ---------------- EMPLOYEE SURVEY ----------------
+  /* =========================
+     EMPLOYEE SURVEY SUBMISSION
+  ========================= */
 
-  $("q1OtherCheck")?.addEventListener("change", (event) => {
-    $("q1Other").classList.toggle("visible", event.target.checked);
-    if (!event.target.checked) $("q1Other").value = "";
-  });
+  function getCheckedValues(name) {
+    return Array.from(
+      document.querySelectorAll(`input[name="${name}"]:checked`)
+    ).map(input => input.value);
+  }
 
-  $("surveyForm")?.addEventListener("submit", async (event) => {
+  async function handleSurveySubmit(event) {
     event.preventDefault();
+    clearMessage("surveyMessage");
 
-    const q1 = checkedValues("q1");
-    const q2 = checkedValues("q2");
-    const q3 = checkedValues("q3");
+    if (!currentToken || currentUser?.role !== "EMPLOYEE") {
+      showMessage("surveyMessage", "សូម Login ម្តងទៀត។");
+      logout();
+      return;
+    }
+
+    const q1 = getCheckedValues("q1");
+    const q2 = getCheckedValues("q2");
+    const q3 = getCheckedValues("q3");
+
     const q1Other = $("q1Other").value.trim();
+    const q4 = $("q4Comments").value.trim();
 
-    if (!q1.length || !q2.length || !q3.length) {
-      showMessage("surveyMessage", "សូមឆ្លើយសំណួរទី ១ ទី ២ និងទី ៣ ជាមុនសិន។");
+    if (q1.length === 0 || q2.length === 0 || q3.length === 0) {
+      showMessage(
+        "surveyMessage",
+        "សូមជ្រើសរើសចម្លើយយ៉ាងហោចណាស់មួយសម្រាប់សំណួរ ១, ២ និង ៣។"
+      );
       return;
     }
 
     if (q1.includes("ផ្សេងៗ") && !q1Other) {
-      showMessage("surveyMessage", "សូមបញ្ជាក់ជំនាញផ្សេងៗដែលអ្នកចង់រៀន។");
+      showMessage(
+        "surveyMessage",
+        "សូមបញ្ជាក់ជំនាញផ្សេងៗដែលអ្នកចង់រៀន។"
+      );
       return;
     }
 
-    const button = $("submitSurveyBtn");
-    setLoading(button, true);
+    const answers = {
+      q1,
+      q1Other,
+      q2,
+      q3,
+      q4
+    };
+
+    setButtonLoading("submitSurveyBtn", true, "កំពុងបញ្ជូនចម្លើយ...");
 
     try {
       await api("submitSurvey", {
-        token: state.token,
-        answers: {
-          q1,
-          q1Other,
-          q2,
-          q3,
-          q4: $("q4Comments").value.trim()
-        }
+        token: currentToken,
+        answers
       });
+
+      $("surveyForm").reset();
 
       showMessage(
         "surveyMessage",
-        "ចម្លើយរបស់អ្នកត្រូវបានបញ្ជូនដោយជោគជ័យ។ សូមអរគុណចំពោះការចូលរួម!",
+        "សូមអរគុណ! ចម្លើយរបស់អ្នកត្រូវបានបញ្ជូនដោយជោគជ័យ។",
         "success"
       );
 
-      $("surveyForm").querySelectorAll("input, textarea, button").forEach((el) => {
-        el.disabled = true;
-      });
+      $("submitSurveyBtn").disabled = true;
+      $("submitSurveyBtn").textContent = "បានបញ្ជូនចម្លើយរួចរាល់";
 
     } catch (error) {
-      showMessage("surveyMessage", error.message || "មិនអាចបញ្ជូនចម្លើយបានទេ។");
+      showMessage("surveyMessage", error.message);
     } finally {
-      setLoading(button, false, "បញ្ជូនចម្លើយស្ទង់មតិ →");
+      if (!$("submitSurveyBtn").disabled) {
+        setButtonLoading("submitSurveyBtn", false);
+      }
     }
-  });
+  }
 
-  // ---------------- ADMIN DASHBOARD ----------------
+  /* =========================
+     ADMIN DASHBOARD
+  ========================= */
+
+  async function showAdminDashboard(user) {
+    showView("adminView");
+
+    $("adminEmail").textContent = user.email || "Administrator";
+    $("adminRole").textContent = user.adminRole || "HR Admin";
+
+    await loadAdminDashboard();
+  }
 
   async function loadAdminDashboard() {
-    showMessage("adminMessage", "កំពុងទាញយកទិន្នន័យពី Google Sheets...", "info");
+    if (!currentToken || currentUser?.role !== "ADMIN") {
+      logout();
+      return;
+    }
+
+    setLoading(true, "កំពុងទាញយកទិន្នន័យ Dashboard...");
 
     try {
-      const [summary, analytics, responseData] = await Promise.all([
-        api("adminSummary", { token: state.token }),
-        api("adminAnalytics", { token: state.token }),
-        api("adminResponses", { token: state.token })
+      const [summary, analytics, responses] = await Promise.all([
+        api("adminSummary", { token: currentToken }),
+        api("adminAnalytics", { token: currentToken }),
+        api("adminResponses", { token: currentToken })
       ]);
 
       renderSummary(summary);
       renderAnalytics(analytics);
 
-      state.responses = extractResponses(responseData);
-      renderResponses(state.responses);
+      allResponses = Array.isArray(responses)
+        ? responses
+        : (responses.responses || responses.data || []);
 
-      showMessage("adminMessage", "ទិន្នន័យបានធ្វើបច្ចុប្បន្នភាព។", "success");
+      renderResponses(allResponses);
 
     } catch (error) {
-      showMessage("adminMessage", error.message || "មិនអាចទាញយកទិន្នន័យ Admin បានទេ។");
+      showMessage("responseMessage", error.message);
+    } finally {
+      setLoading(false);
     }
   }
 
+  /* =========================
+     SUMMARY CARDS
+  ========================= */
+
   function renderSummary(data) {
-    const total = Number(firstValue(data, ["totalEmployees", "total"], 0));
-    const active = Number(firstValue(data, ["activeEmployees", "active"], 0));
-    const responded = Number(firstValue(data, ["respondedEmployees", "totalResponses", "responded"], 0));
-    const pending = Number(firstValue(data, ["pendingEmployees", "pending"], Math.max(0, active - responded)));
+    $("totalEmployees").textContent =
+      numberFormat(data.totalEmployees);
 
-    $("statTotalEmployees").textContent = total.toLocaleString();
-    $("statActiveEmployees").textContent = active.toLocaleString();
-    $("statResponded").textContent = responded.toLocaleString();
-    $("statPending").textContent = pending.toLocaleString();
+    $("activeEmployees").textContent =
+      numberFormat(data.activeEmployees);
 
-    const rate = active > 0 ? Math.min(100, (responded / active) * 100) : 0;
-    $("completionRate").textContent = `${rate.toFixed(1)}%`;
-    $("completionBar").style.width = `${rate}%`;
+    $("respondedEmployees").textContent =
+      numberFormat(data.respondedEmployees);
+
+    $("pendingEmployees").textContent =
+      numberFormat(data.pendingEmployees);
+
+    $("totalResponses").textContent =
+      numberFormat(data.totalResponses);
 
     $("surveyStatus").textContent =
-      `Survey Status: ${firstValue(data, ["surveyStatus", "status"], "—")}`;
-    $("surveyIdLabel").textContent =
-      `Survey ID: ${firstValue(data, ["surveyId"], "—")}`;
+      data.surveyStatus || "-";
+
+    $("surveyId").textContent =
+      data.surveyId || "EPDS-2026";
   }
 
-  // Supports arrays and object-based analytics returned by Apps Script.
-  function normalizeAnalytics(source) {
-    if (Array.isArray(source)) {
-      return source.map((item) => ({
-        label: firstValue(item, ["name", "label", "department", "skill", "value"], "Other"),
-        count: Number(firstValue(item, ["count", "total", "responses", "valueCount"], 0))
+  /* =========================
+     ANALYTICS
+  ========================= */
+
+  function normalizeAggregate(data) {
+    if (Array.isArray(data)) {
+      return data.map(item => ({
+        label: item.label || item.name || item.department || item.value || "Other",
+        count: Number(item.count ?? item.total ?? item.valueCount ?? 0)
       }));
     }
 
-    if (source && typeof source === "object") {
-      return Object.entries(source).map(([label, value]) => ({
+    if (data && typeof data === "object") {
+      return Object.entries(data).map(([label, count]) => ({
         label,
         count: Number(
-          typeof value === "object"
-            ? firstValue(value, ["count", "total", "responses"], 0)
-            : value
+          typeof count === "object"
+            ? count.count ?? count.total ?? 0
+            : count
         )
       }));
     }
@@ -334,133 +516,263 @@
     return [];
   }
 
-  function renderAnalytics(data) {
-    const department = firstValue(data, ["department", "departments", "byDepartment"], []);
-    const skills = firstValue(data, ["skills", "bySkill"], []);
-    const development = firstValue(data, ["development", "developments", "byDevelopment"], []);
-    const support = firstValue(data, ["support", "supports", "bySupport"], []);
+  function renderAggregate(elementId, data) {
+    const element = $(elementId);
+    if (!element) return;
 
-    renderAnalyticsList("departmentAnalytics", department);
-    renderAnalyticsList("skillsAnalytics", skills);
-    renderAnalyticsList("developmentAnalytics", development);
-    renderAnalyticsList("supportAnalytics", support);
-  }
-
-  function renderAnalyticsList(elementId, source) {
-    const container = $(elementId);
-    if (!container) return;
-
-    const items = normalizeAnalytics(source).sort((a, b) => b.count - a.count);
+    const items = normalizeAggregate(data)
+      .filter(item => item.label && Number.isFinite(item.count))
+      .sort((a, b) => b.count - a.count);
 
     if (!items.length) {
-      container.innerHTML = '<p class="empty-state">មិនទាន់មានទិន្នន័យ។</p>';
+      element.innerHTML = '<p class="empty-state">មិនទាន់មានទិន្នន័យ</p>';
       return;
     }
 
-    const max = Math.max(...items.map((item) => item.count), 1);
+    const max = Math.max(...items.map(item => item.count), 1);
 
-    container.innerHTML = items.map((item) => {
-      const percent = Math.max(0, Math.min(100, (item.count / max) * 100));
+    element.innerHTML = items.map(item => {
+      const percent = Math.max(0, Math.min(100, item.count / max * 100));
+
       return `
         <div class="analytics-item">
           <div class="analytics-label">
             <span>${escapeHTML(item.label)}</span>
-            <strong>${item.count.toLocaleString()}</strong>
+            <strong>${numberFormat(item.count)}</strong>
           </div>
-          <div class="mini-track">
-            <div class="mini-bar" style="width:${percent}%"></div>
+          <div class="progress-track">
+            <div class="progress-fill" style="width:${percent}%"></div>
           </div>
         </div>
       `;
     }).join("");
   }
 
-  function extractResponses(data) {
-    if (Array.isArray(data)) return data;
-
-    for (const key of ["responses", "data", "items", "records"]) {
-      if (Array.isArray(data?.[key])) return data[key];
-    }
-
-    return [];
+  function renderAnalytics(data) {
+    renderAggregate("departmentAnalytics", data.department);
+    renderAggregate("skillsAnalytics", data.skills);
+    renderAggregate("developmentAnalytics", data.development);
+    renderAggregate("supportAnalytics", data.support);
   }
 
-  function renderResponses(responses) {
+  /* =========================
+     RESPONSE TABLE
+  ========================= */
+
+  function renderResponses(rows) {
     const tbody = $("responsesTableBody");
     if (!tbody) return;
 
-    const search = ($("responseSearch")?.value || "").trim().toLowerCase();
-
-    const filtered = responses.filter((row) => {
-      const staffId = String(firstValue(row, ["staffId", "Staff_ID"], "")).toLowerCase();
-      const name = String(firstValue(row, ["employeeName", "Employee_Name"], "")).toLowerCase();
-      return staffId.includes(search) || name.includes(search);
-    });
-
-    if (!filtered.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="empty-state">មិនមានទិន្នន័យត្រូវនឹងការស្វែងរកទេ។</td></tr>';
-      $("responseCount").textContent = "0 responses";
+    if (!rows || rows.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7" class="empty-state">
+            មិនទាន់មានចម្លើយស្ទង់មតិ
+          </td>
+        </tr>
+      `;
       return;
     }
 
-    tbody.innerHTML = filtered.map((row, index) => {
-      const staffId = firstValue(row, ["staffId", "Staff_ID"], "");
-      const name = firstValue(row, ["employeeName", "Employee_Name"], "");
-      const department = firstValue(row, ["department", "Department"], "");
-      const skills = firstValue(row, ["q1Skills", "Q1_Skills"], "");
-      const date = firstValue(row, ["submissionDate", "Submission_Date"], "");
-
-      return `
-        <tr>
-          <td>${index + 1}</td>
-          <td>${escapeHTML(staffId)}</td>
-          <td>${escapeHTML(name)}</td>
-          <td>${escapeHTML(department)}</td>
-          <td>${escapeHTML(skills)}</td>
-          <td>${escapeHTML(date)}</td>
-        </tr>
-      `;
-    }).join("");
-
-    $("responseCount").textContent =
-      `បង្ហាញ ${filtered.length} នៃ ${responses.length} ចម្លើយ`;
+    tbody.innerHTML = rows.map((row, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${escapeHTML(row.staffId || row.Staff_ID || "-")}</td>
+        <td>${escapeHTML(row.employeeName || row.Employee_Name || "-")}</td>
+        <td>${escapeHTML(row.department || row.Department || "-")}</td>
+        <td>${escapeHTML(row.position || row.Position || "-")}</td>
+        <td>${escapeHTML(formatDate(row.submissionDate || row.Submission_Date))}</td>
+        <td>
+          <button
+            type="button"
+            class="btn btn-small btn-outline response-detail-btn"
+            data-index="${index}"
+          >
+            មើលព័ត៌មាន
+          </button>
+        </td>
+      </tr>
+    `).join("");
   }
 
-  $("refreshAdminBtn")?.addEventListener("click", loadAdminDashboard);
-  $("responseSearch")?.addEventListener("input", () => {
-    renderResponses(state.responses);
-  });
+  function filterResponses() {
+    const keyword = $("responseSearch").value.trim().toLowerCase();
 
-  // ---------------- LOGOUT ----------------
+    if (!keyword) {
+      renderResponses(allResponses);
+      return;
+    }
 
-  function logout() {
-    state.token = null;
-    state.role = null;
-    state.profile = null;
-    state.responses = [];
+    const filtered = allResponses.filter(row => {
+      const text = [
+        row.staffId,
+        row.Staff_ID,
+        row.employeeName,
+        row.Employee_Name,
+        row.department,
+        row.Department,
+        row.position,
+        row.Position
+      ].join(" ").toLowerCase();
 
-    $("loginForm")?.reset();
-    $("surveyForm")?.reset();
-
-    $("surveyForm")?.querySelectorAll("input, textarea, button").forEach((el) => {
-      el.disabled = false;
+      return text.includes(keyword);
     });
 
-    $("q1Other")?.classList.remove("visible");
-    $("registerCard")?.classList.add("hidden");
-
-    showMessage("loginMessage", "");
-    showMessage("surveyMessage", "");
-    showMessage("adminMessage", "");
-
-    showView("loginView");
+    renderResponses(filtered);
   }
 
-  document.querySelectorAll(".logoutBtn").forEach((button) => {
-    button.addEventListener("click", logout);
-  });
+  /* =========================
+     RESPONSE DETAIL MODAL
+  ========================= */
 
-  // Initial screen
-  showView("loginView");
+  function showResponseDetail(index) {
+    const row = allResponses[index];
+    if (!row) return;
+
+    const fields = [
+      ["Staff ID", row.staffId || row.Staff_ID],
+      ["Employee Name", row.employeeName || row.Employee_Name],
+      ["Department", row.department || row.Department],
+      ["Position", row.position || row.Position],
+      ["Q1 - Skills", row.q1Skills || row.Q1_Skills],
+      ["Q1 - Other Skill", row.q1OtherSkill || row.Q1_Other_Skill],
+      ["Q2 - Development", row.q2Development || row.Q2_Development],
+      ["Q3 - Support", row.q3Support || row.Q3_Support],
+      ["Q4 - Comments", row.q4Comments || row.Q4_Comments],
+      ["Submission Date", row.submissionDate || row.Submission_Date]
+    ];
+
+    $("responseDetailContent").innerHTML = fields.map(([label, value]) => `
+      <div class="detail-row">
+        <strong>${escapeHTML(label)}</strong>
+        <p>${escapeHTML(displayValue(value))}</p>
+      </div>
+    `).join("");
+
+    $("responseModal").classList.remove("hidden");
+  }
+
+  function closeResponseModal() {
+    $("responseModal").classList.add("hidden");
+  }
+
+  /* =========================
+     CSV EXPORT
+  ========================= */
+
+  function exportCSV() {
+    if (!allResponses.length) {
+      showMessage("responseMessage", "មិនមានទិន្នន័យសម្រាប់ Export ទេ។");
+      return;
+    }
+
+    const columns = [
+      ["Staff ID", "staffId", "Staff_ID"],
+      ["Employee Name", "employeeName", "Employee_Name"],
+      ["Department", "department", "Department"],
+      ["Position", "position", "Position"],
+      ["Q1 Skills", "q1Skills", "Q1_Skills"],
+      ["Q1 Other Skill", "q1OtherSkill", "Q1_Other_Skill"],
+      ["Q2 Development", "q2Development", "Q2_Development"],
+      ["Q3 Support", "q3Support", "Q3_Support"],
+      ["Q4 Comments", "q4Comments", "Q4_Comments"],
+      ["Submission Date", "submissionDate", "Submission_Date"]
+    ];
+
+    const csvEscape = value => {
+      const text = displayValue(value);
+      return `"${text.replace(/"/g, '""')}"`;
+    };
+
+    const header = columns.map(column => csvEscape(column[0])).join(",");
+
+    const body = allResponses.map(row => {
+      return columns.map(([, camel, snake]) => {
+        return csvEscape(row[camel] ?? row[snake] ?? "");
+      }).join(",");
+    });
+
+    const csv = "\uFEFF" + [header, ...body].join("\r\n");
+    const blob = new Blob([csv], {
+      type: "text/csv;charset=utf-8;"
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `EPDS_Responses_${new Date().toISOString().slice(0, 10)}.csv`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    URL.revokeObjectURL(url);
+  }
+
+  /* =========================
+     EVENT LISTENERS
+  ========================= */
+
+  function bindEvents() {
+    $("loginForm")?.addEventListener("submit", handleLogin);
+    $("registerForm")?.addEventListener("submit", handleRegistration);
+    $("surveyForm")?.addEventListener("submit", handleSurveySubmit);
+
+    $("showRegisterBtn")?.addEventListener("click", () => {
+      clearMessage("registerMessage");
+      showView("registerView");
+    });
+
+    $("backToLoginBtn")?.addEventListener("click", () => {
+      showView("loginView");
+    });
+
+    $("employeeLogoutBtn")?.addEventListener("click", logout);
+    $("adminLogoutBtn")?.addEventListener("click", logout);
+
+    $("refreshDashboardBtn")?.addEventListener("click", loadAdminDashboard);
+
+    $("responseSearch")?.addEventListener("input", filterResponses);
+
+    $("exportCsvBtn")?.addEventListener("click", exportCSV);
+
+    $("responsesTableBody")?.addEventListener("click", event => {
+      const button = event.target.closest(".response-detail-btn");
+      if (!button) return;
+
+      showResponseDetail(Number(button.dataset.index));
+    });
+
+    $("closeResponseModalBtn")?.addEventListener("click", closeResponseModal);
+    $("closeModalBackdrop")?.addEventListener("click", closeResponseModal);
+  }
+
+  /* =========================
+     APP INITIALIZATION
+  ========================= */
+
+  async function initializeApp() {
+    bindEvents();
+
+    if (!restoreSession()) {
+      showView("loginView");
+      return;
+    }
+
+    if (currentUser.role === "EMPLOYEE") {
+      showEmployeeDashboard(currentUser);
+      return;
+    }
+
+    if (currentUser.role === "ADMIN") {
+      await showAdminDashboard(currentUser);
+      return;
+    }
+
+    logout();
+  }
+
+  document.addEventListener("DOMContentLoaded", initializeApp);
 
 })();
