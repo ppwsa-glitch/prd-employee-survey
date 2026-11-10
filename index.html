@@ -6,13 +6,50 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#0b1730">
 
+  <meta
+    name="description"
+    content="Employee Development Survey Management System"
+  >
+
   <title>EPDS | Employee Development Survey</title>
 
+  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Battambang:wght@300;400;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
+  <link
+    href="https://fonts.googleapis.com/css2?family=Battambang:wght@300;400;700&family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  >
+
+  <!-- Main Stylesheet -->
   <link rel="stylesheet" href="assets/css/style.css">
+
+  <!-- Export Buttons Layout -->
+  <style>
+    .export-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .export-actions button {
+      white-space: nowrap;
+    }
+
+    @media (max-width: 600px) {
+      .export-actions {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      .export-actions button {
+        flex: 1;
+      }
+    }
+  </style>
 </head>
 
 <body>
@@ -24,6 +61,7 @@
 
         <div class="app-brand">
           <div class="brand-icon">EPDS</div>
+
           <div>
             <h1>Employee Development</h1>
             <p>Survey Management System</p>
@@ -37,8 +75,12 @@
           </div>
 
           <form id="loginForm">
+
             <div class="form-group">
-              <label for="loginIdentifier">Staff ID / Admin Email</label>
+              <label for="loginIdentifier">
+                Staff ID / Admin Email
+              </label>
+
               <input
                 type="text"
                 id="loginIdentifier"
@@ -50,6 +92,7 @@
 
             <div class="form-group">
               <label for="loginPassword">Password</label>
+
               <input
                 type="password"
                 id="loginPassword"
@@ -59,16 +102,30 @@
               >
             </div>
 
-            <div id="loginMessage" class="message" role="alert"></div>
+            <div
+              id="loginMessage"
+              class="message"
+              role="alert"
+            ></div>
 
-            <button type="submit" id="loginBtn" class="btn btn-primary">
+            <button
+              type="submit"
+              id="loginBtn"
+              class="btn btn-primary"
+            >
               ចូលប្រើប្រាស់
             </button>
+
           </form>
 
           <div class="login-footer">
             <span>មិនទាន់មានគណនី?</span>
-            <button type="button" id="showRegisterBtn" class="text-button">
+
+            <button
+              type="button"
+              id="showRegisterBtn"
+              class="text-button"
+            >
               ចុះឈ្មោះគណនីដំបូង
             </button>
           </div>
@@ -77,6 +134,7 @@
         <p class="copyright">
           Employee Development Survey System © 2026
         </p>
+
       </div>
     </section>
 
@@ -87,6 +145,7 @@
 
         <div class="app-brand">
           <div class="brand-icon">EPDS</div>
+
           <div>
             <h1>Account Registration</h1>
             <p>Employee Account Activation</p>
@@ -100,8 +159,10 @@
           </div>
 
           <form id="registerForm">
+
             <div class="form-group">
               <label for="registerStaffId">Staff ID</label>
+
               <input
                 type="text"
                 id="registerStaffId"
@@ -111,7 +172,10 @@
             </div>
 
             <div class="form-group">
-              <label for="activationCode">Activation Code</label>
+              <label for="activationCode">
+                Activation Code
+              </label>
+
               <input
                 type="text"
                 id="activationCode"
@@ -121,36 +185,57 @@
             </div>
 
             <div class="form-group">
-              <label for="registerPassword">បង្កើត Password</label>
+              <label for="registerPassword">
+                បង្កើត Password
+              </label>
+
               <input
                 type="password"
                 id="registerPassword"
                 placeholder="បង្កើត Password ថ្មី"
                 autocomplete="new-password"
+                minlength="8"
                 required
               >
             </div>
 
             <div class="form-group">
-              <label for="confirmPassword">បញ្ជាក់ Password</label>
+              <label for="confirmPassword">
+                បញ្ជាក់ Password
+              </label>
+
               <input
                 type="password"
                 id="confirmPassword"
                 placeholder="បញ្ចូល Password ម្ដងទៀត"
                 autocomplete="new-password"
+                minlength="8"
                 required
               >
             </div>
 
-            <div id="registerMessage" class="message" role="alert"></div>
+            <div
+              id="registerMessage"
+              class="message"
+              role="alert"
+            ></div>
 
-            <button type="submit" id="registerBtn" class="btn btn-primary">
+            <button
+              type="submit"
+              id="registerBtn"
+              class="btn btn-primary"
+            >
               បង្កើតគណនី
             </button>
+
           </form>
 
           <div class="login-footer">
-            <button type="button" id="backToLoginBtn" class="text-button">
+            <button
+              type="button"
+              id="backToLoginBtn"
+              class="text-button"
+            >
               ← ត្រឡប់ទៅ Login
             </button>
           </div>
@@ -164,203 +249,358 @@
     <section id="employeeView" class="view hidden">
 
       <header class="topbar">
+
         <div class="topbar-brand">
           <div class="brand-icon small">EPDS</div>
+
           <div>
             <strong>Employee Development Survey</strong>
-            <small>ប្រព័ន្ធស្ទង់មតិការអភិវឌ្ឍសមត្ថភាពបុគ្គលិក</small>
+            <small>
+              ប្រព័ន្ធស្ទង់មតិការអភិវឌ្ឍសមត្ថភាពបុគ្គលិក
+            </small>
           </div>
         </div>
 
         <div class="topbar-actions">
+
           <div class="user-info">
             <strong id="employeeName">Employee</strong>
             <small id="employeeStaffId">Staff ID</small>
           </div>
-          <button type="button" id="employeeLogoutBtn" class="btn btn-outline">
+
+          <button
+            type="button"
+            id="employeeLogoutBtn"
+            class="btn btn-outline"
+          >
             ចាកចេញ
           </button>
+
         </div>
       </header>
 
+
       <main class="page-content">
 
+        <!-- Welcome Banner -->
         <div class="welcome-banner">
           <div>
-            <span class="eyebrow">EMPLOYEE SURVEY 2026</span>
+            <span class="eyebrow">
+              EMPLOYEE SURVEY 2026
+            </span>
+
             <h2>ការអភិវឌ្ឍសមត្ថភាពបុគ្គលិក</h2>
+
             <p>
               សូមចូលរួមផ្តល់មតិយោបល់ ដើម្បីជួយរៀបចំផែនការបណ្តុះបណ្តាល
               និងអភិវឌ្ឍសមត្ថភាពការងារ។
             </p>
           </div>
+
           <div class="banner-mark">EPDS</div>
         </div>
 
+
+        <!-- Employee Profile -->
         <div class="profile-card">
+
           <div>
             <span>ឈ្មោះបុគ្គលិក</span>
             <strong id="profileName">-</strong>
           </div>
+
           <div>
             <span>អត្តលេខបុគ្គលិក</span>
             <strong id="profileStaffId">-</strong>
           </div>
+
           <div>
             <span>អង្គភាព</span>
             <strong id="profileDepartment">-</strong>
           </div>
+
           <div>
             <span>តួនាទី</span>
             <strong id="profilePosition">-</strong>
           </div>
+
         </div>
 
+
+        <!-- Survey Form -->
         <form id="surveyForm">
 
           <!-- QUESTION 1 -->
           <div class="survey-card">
-            <div class="question-number">QUESTION 01</div>
-            <h3>តើអ្នកចង់រៀនជំនាញអ្វីបន្ថែម?</h3>
-            <p class="question-hint">អាចជ្រើសរើសបានច្រើនជម្រើស</p>
+
+            <div class="question-number">
+              QUESTION 01
+            </div>
+
+            <h3>
+              តើអ្នកចង់រៀនជំនាញអ្វីបន្ថែម?
+            </h3>
+
+            <p class="question-hint">
+              អាចជ្រើសរើសបានច្រើនជម្រើស
+            </p>
 
             <div class="option-grid">
+
               <label class="option-item">
-                <input type="checkbox" name="q1" value="ជំនាញកុំព្យូទ័រ និងបច្ចេកវិទ្យា">
-                <span>ជំនាញកុំព្យូទ័រ និងបច្ចេកវិទ្យា</span>
+                <input
+                  type="checkbox"
+                  name="q1"
+                  value="ជំនាញកុំព្យូទ័រ និងបច្ចេកវិទ្យា"
+                >
+                <span>
+                  ជំនាញកុំព្យូទ័រ និងបច្ចេកវិទ្យា
+                </span>
               </label>
 
               <label class="option-item">
-                <input type="checkbox" name="q1" value="ភាសាអង់គ្លេស">
+                <input
+                  type="checkbox"
+                  name="q1"
+                  value="ភាសាអង់គ្លេស"
+                >
                 <span>ភាសាអង់គ្លេស</span>
               </label>
 
               <label class="option-item">
-                <input type="checkbox" name="q1" value="បញ្ញាសិប្បនិម្មិត">
+                <input
+                  type="checkbox"
+                  name="q1"
+                  value="បញ្ញាសិប្បនិម្មិត"
+                >
                 <span>បញ្ញាសិប្បនិម្មិត (AI)</span>
               </label>
 
               <label class="option-item">
-                <input type="checkbox" name="q1" value="ជំនាញដឹកនាំ និងគ្រប់គ្រង">
+                <input
+                  type="checkbox"
+                  name="q1"
+                  value="ជំនាញដឹកនាំ និងគ្រប់គ្រង"
+                >
                 <span>ជំនាញដឹកនាំ និងគ្រប់គ្រង</span>
               </label>
 
               <label class="option-item">
-                <input type="checkbox" name="q1" value="ជំនាញទំនាក់ទំនង">
+                <input
+                  type="checkbox"
+                  name="q1"
+                  value="ជំនាញទំនាក់ទំនង"
+                >
                 <span>ជំនាញទំនាក់ទំនង</span>
               </label>
 
               <label class="option-item">
-                <input type="checkbox" name="q1" value="ជំនាញបច្ចេកទេស">
+                <input
+                  type="checkbox"
+                  name="q1"
+                  value="ជំនាញបច្ចេកទេស"
+                >
                 <span>ជំនាញបច្ចេកទេស</span>
               </label>
 
               <label class="option-item">
-                <input type="checkbox" name="q1" value="ផ្សេងៗ">
+                <input
+                  type="checkbox"
+                  name="q1"
+                  value="ផ្សេងៗ"
+                >
                 <span>ផ្សេងៗ (សូមបញ្ជាក់)</span>
               </label>
+
             </div>
 
             <div class="form-group other-field">
-              <label for="q1Other">សូមបញ្ជាក់ជំនាញផ្សេងៗ</label>
+              <label for="q1Other">
+                សូមបញ្ជាក់ជំនាញផ្សេងៗ
+              </label>
+
               <input
                 type="text"
                 id="q1Other"
                 placeholder="បញ្ចូលជំនាញដែលអ្នកចង់រៀនបន្ថែម..."
+                maxlength="200"
               >
             </div>
+
           </div>
 
 
           <!-- QUESTION 2 -->
           <div class="survey-card">
-            <div class="question-number">QUESTION 02</div>
-            <h3>តើអ្នកចង់អភិវឌ្ឍសមត្ថភាពអ្វីបន្ថែមក្នុងការងារ?</h3>
-            <p class="question-hint">អាចជ្រើសរើសបានច្រើនជម្រើស</p>
+
+            <div class="question-number">
+              QUESTION 02
+            </div>
+
+            <h3>
+              តើអ្នកចង់អភិវឌ្ឍសមត្ថភាពអ្វីបន្ថែមក្នុងការងារ?
+            </h3>
+
+            <p class="question-hint">
+              អាចជ្រើសរើសបានច្រើនជម្រើស
+            </p>
 
             <div class="option-grid">
+
               <label class="option-item">
-                <input type="checkbox" name="q2" value="ចំណេះដឹង">
+                <input
+                  type="checkbox"
+                  name="q2"
+                  value="ចំណេះដឹង"
+                >
                 <span>ចំណេះដឹង</span>
               </label>
 
               <label class="option-item">
-                <input type="checkbox" name="q2" value="ជំនាញវិជ្ជាជីវៈ">
+                <input
+                  type="checkbox"
+                  name="q2"
+                  value="ជំនាញវិជ្ជាជីវៈ"
+                >
                 <span>ជំនាញវិជ្ជាជីវៈ</span>
               </label>
 
               <label class="option-item">
-                <input type="checkbox" name="q2" value="ការដឹកនាំ">
+                <input
+                  type="checkbox"
+                  name="q2"
+                  value="ការដឹកនាំ"
+                >
                 <span>ការដឹកនាំ</span>
               </label>
 
               <label class="option-item">
-                <input type="checkbox" name="q2" value="ការធ្វើការជាក្រុម">
+                <input
+                  type="checkbox"
+                  name="q2"
+                  value="ការធ្វើការជាក្រុម"
+                >
                 <span>ការធ្វើការជាក្រុម</span>
               </label>
 
               <label class="option-item">
-                <input type="checkbox" name="q2" value="ការដោះស្រាយបញ្ហា">
+                <input
+                  type="checkbox"
+                  name="q2"
+                  value="ការដោះស្រាយបញ្ហា"
+                >
                 <span>ការដោះស្រាយបញ្ហា</span>
               </label>
+
             </div>
           </div>
 
 
           <!-- QUESTION 3 -->
           <div class="survey-card">
-            <div class="question-number">QUESTION 03</div>
-            <h3>តើអ្នកចង់ឱ្យអង្គភាពជួយគាំទ្រអ្វីខ្លះ ដើម្បីបង្កើនសមត្ថភាពការងារ?</h3>
-            <p class="question-hint">អាចជ្រើសរើសបានច្រើនជម្រើស</p>
+
+            <div class="question-number">
+              QUESTION 03
+            </div>
+
+            <h3>
+              តើអ្នកចង់ឱ្យអង្គភាពជួយគាំទ្រអ្វីខ្លះ ដើម្បីបង្កើនសមត្ថភាពការងារ?
+            </h3>
+
+            <p class="question-hint">
+              អាចជ្រើសរើសបានច្រើនជម្រើស
+            </p>
 
             <div class="option-grid">
+
               <label class="option-item">
-                <input type="checkbox" name="q3" value="រៀបចំវគ្គបណ្តុះបណ្តាល">
+                <input
+                  type="checkbox"
+                  name="q3"
+                  value="រៀបចំវគ្គបណ្តុះបណ្តាល"
+                >
                 <span>រៀបចំវគ្គបណ្តុះបណ្តាល</span>
               </label>
 
               <label class="option-item">
-                <input type="checkbox" name="q3" value="ផ្តល់ឱកាសសិក្សាជំនាញថ្មី">
+                <input
+                  type="checkbox"
+                  name="q3"
+                  value="ផ្តល់ឱកាសសិក្សាជំនាញថ្មី"
+                >
                 <span>ផ្តល់ឱកាសសិក្សាជំនាញថ្មី</span>
               </label>
 
               <label class="option-item">
-                <input type="checkbox" name="q3" value="ផ្តល់សម្ភារៈ និងឧបករណ៍">
+                <input
+                  type="checkbox"
+                  name="q3"
+                  value="ផ្តល់សម្ភារៈ និងឧបករណ៍"
+                >
                 <span>ផ្តល់សម្ភារៈ និងឧបករណ៍</span>
               </label>
 
               <label class="option-item">
-                <input type="checkbox" name="q3" value="ផ្តល់ឱកាសអភិវឌ្ឍអាជីព">
+                <input
+                  type="checkbox"
+                  name="q3"
+                  value="ផ្តល់ឱកាសអភិវឌ្ឍអាជីព"
+                >
                 <span>ផ្តល់ឱកាសអភិវឌ្ឍអាជីព</span>
               </label>
+
             </div>
           </div>
 
 
           <!-- QUESTION 4 -->
           <div class="survey-card">
-            <div class="question-number">QUESTION 04</div>
-            <h3>តើអ្នកមានសំណូមពរ ឬមតិយោបល់បន្ថែមអ្វីខ្លះ?</h3>
-            <p class="question-hint">មិនតម្រូវឱ្យបំពេញ (Optional)</p>
+
+            <div class="question-number">
+              QUESTION 04
+            </div>
+
+            <h3>
+              តើអ្នកមានសំណូមពរ ឬមតិយោបល់បន្ថែមអ្វីខ្លះ?
+            </h3>
+
+            <p class="question-hint">
+              មិនតម្រូវឱ្យបំពេញ (Optional)
+            </p>
 
             <div class="form-group">
               <textarea
                 id="q4Comments"
                 rows="5"
+                maxlength="2000"
                 placeholder="សូមបញ្ចូលមតិយោបល់ ឬសំណូមពររបស់អ្នក..."
               ></textarea>
             </div>
+
           </div>
 
-          <div id="surveyMessage" class="message" role="alert"></div>
 
+          <!-- Survey Message -->
+          <div
+            id="surveyMessage"
+            class="message"
+            role="alert"
+          ></div>
+
+
+          <!-- Survey Submit -->
           <div class="survey-submit">
-            <button type="submit" id="submitSurveyBtn" class="btn btn-primary">
+            <button
+              type="submit"
+              id="submitSurveyBtn"
+              class="btn btn-primary"
+            >
               បញ្ជូនចម្លើយស្ទង់មតិ
             </button>
           </div>
 
         </form>
+
       </main>
     </section>
 
@@ -369,8 +609,10 @@
     <section id="adminView" class="view hidden">
 
       <header class="topbar">
+
         <div class="topbar-brand">
           <div class="brand-icon small">EPDS</div>
+
           <div>
             <strong>EPDS Administration</strong>
             <small>Survey Management Dashboard</small>
@@ -378,29 +620,51 @@
         </div>
 
         <div class="topbar-actions">
+
           <div class="user-info">
             <strong id="adminEmail">Administrator</strong>
             <small id="adminRole">HR Admin</small>
           </div>
-          <button type="button" id="adminLogoutBtn" class="btn btn-outline">
+
+          <button
+            type="button"
+            id="adminLogoutBtn"
+            class="btn btn-outline"
+          >
             ចាកចេញ
           </button>
+
         </div>
       </header>
 
+
       <main class="page-content">
 
+        <!-- Dashboard Heading -->
         <div class="dashboard-heading">
+
           <div>
-            <span class="eyebrow">ADMINISTRATION</span>
+            <span class="eyebrow">
+              ADMINISTRATION
+            </span>
+
             <h2>Admin Dashboard</h2>
-            <p>ស្ថិតិ និងការគ្រប់គ្រងទិន្នន័យស្ទង់មតិបុគ្គលិក</p>
+
+            <p>
+              ស្ថិតិ និងការគ្រប់គ្រងទិន្នន័យស្ទង់មតិបុគ្គលិក
+            </p>
           </div>
 
-          <button type="button" id="refreshDashboardBtn" class="btn btn-primary">
+          <button
+            type="button"
+            id="refreshDashboardBtn"
+            class="btn btn-primary"
+          >
             ↻ Refresh Data
           </button>
+
         </div>
+
 
         <!-- SUMMARY CARDS -->
         <div class="stats-grid">
@@ -446,6 +710,7 @@
 
         <!-- ANALYTICS -->
         <section class="dashboard-section">
+
           <div class="section-title">
             <div>
               <h3>Survey Analytics</h3>
@@ -453,33 +718,61 @@
             </div>
           </div>
 
+
           <div class="analytics-grid">
 
             <div class="analytics-card">
               <h4>តាមអង្គភាព</h4>
-              <div id="departmentAnalytics" class="analytics-content">
-                <p class="empty-state">មិនទាន់មានទិន្នន័យ</p>
+
+              <div
+                id="departmentAnalytics"
+                class="analytics-content"
+              >
+                <p class="empty-state">
+                  មិនទាន់មានទិន្នន័យ
+                </p>
               </div>
             </div>
+
 
             <div class="analytics-card">
               <h4>ជំនាញដែលបុគ្គលិកចង់រៀន</h4>
-              <div id="skillsAnalytics" class="analytics-content">
-                <p class="empty-state">មិនទាន់មានទិន្នន័យ</p>
+
+              <div
+                id="skillsAnalytics"
+                class="analytics-content"
+              >
+                <p class="empty-state">
+                  មិនទាន់មានទិន្នន័យ
+                </p>
               </div>
             </div>
+
 
             <div class="analytics-card">
               <h4>សមត្ថភាពដែលចង់អភិវឌ្ឍ</h4>
-              <div id="developmentAnalytics" class="analytics-content">
-                <p class="empty-state">មិនទាន់មានទិន្នន័យ</p>
+
+              <div
+                id="developmentAnalytics"
+                class="analytics-content"
+              >
+                <p class="empty-state">
+                  មិនទាន់មានទិន្នន័យ
+                </p>
               </div>
             </div>
 
+
             <div class="analytics-card">
               <h4>ការគាំទ្រដែលត្រូវការ</h4>
-              <div id="supportAnalytics" class="analytics-content">
-                <p class="empty-state">មិនទាន់មានទិន្នន័យ</p>
+
+              <div
+                id="supportAnalytics"
+                class="analytics-content"
+              >
+                <p class="empty-state">
+                  មិនទាន់មានទិន្នន័យ
+                </p>
               </div>
             </div>
 
@@ -489,27 +782,58 @@
 
         <!-- RESPONSES TABLE -->
         <section class="dashboard-section">
+
           <div class="section-title">
+
             <div>
               <h3>Survey Responses</h3>
               <p>បញ្ជីចម្លើយស្ទង់មតិរបស់បុគ្គលិក</p>
             </div>
 
-            <button type="button" id="exportCsvBtn" class="btn btn-outline">
-              ↓ Export CSV
-            </button>
+            <!-- NEW EXPORT BUTTONS -->
+            <div class="export-actions">
+
+              <button
+                type="button"
+                id="exportPdfBtn"
+                class="btn btn-outline"
+                title="Export Survey Report as PDF"
+              >
+                ↓ Export PDF
+              </button>
+
+              <button
+                type="button"
+                id="exportExcelBtn"
+                class="btn btn-primary"
+                title="Export Survey Report as Excel"
+              >
+                ↓ Export Excel
+              </button>
+
+            </div>
+
           </div>
 
+
+          <!-- Search Toolbar -->
           <div class="table-toolbar">
+
             <input
               type="search"
               id="responseSearch"
               placeholder="ស្វែងរក Staff ID, ឈ្មោះ ឬអង្គភាព..."
+              autocomplete="off"
             >
+
           </div>
 
+
+          <!-- Responses Table -->
           <div class="table-container">
+
             <table class="data-table">
+
               <thead>
                 <tr>
                   <th>ល.រ</th>
@@ -523,16 +847,26 @@
               </thead>
 
               <tbody id="responsesTableBody">
+
                 <tr>
                   <td colspan="7" class="empty-state">
                     មិនទាន់មានទិន្នន័យ
                   </td>
                 </tr>
+
               </tbody>
+
             </table>
           </div>
 
-          <div id="responseMessage" class="message" role="alert"></div>
+
+          <!-- Response Message -->
+          <div
+            id="responseMessage"
+            class="message"
+            role="alert"
+          ></div>
+
         </section>
 
       </main>
@@ -541,33 +875,63 @@
 
     <!-- ================= RESPONSE DETAIL MODAL ================= -->
     <div id="responseModal" class="modal hidden">
-      <div class="modal-backdrop" id="closeModalBackdrop"></div>
+
+      <div
+        class="modal-backdrop"
+        id="closeModalBackdrop"
+      ></div>
 
       <div class="modal-dialog">
+
         <div class="modal-header">
+
           <h3>ព័ត៌មានលម្អិតនៃចម្លើយ</h3>
-          <button type="button" id="closeResponseModalBtn" class="modal-close">
+
+          <button
+            type="button"
+            id="closeResponseModalBtn"
+            class="modal-close"
+            aria-label="Close"
+          >
             ×
           </button>
+
         </div>
 
-        <div id="responseDetailContent" class="modal-body">
-          <!-- Response details will be rendered by app.js -->
+        <div
+          id="responseDetailContent"
+          class="modal-body"
+        >
+          <!-- Response details rendered by app.js -->
         </div>
+
       </div>
     </div>
 
 
-    <!-- GLOBAL LOADING -->
-    <div id="loadingOverlay" class="loading-overlay hidden">
+    <!-- ================= GLOBAL LOADING ================= -->
+    <div
+      id="loadingOverlay"
+      class="loading-overlay hidden"
+    >
+
       <div class="loading-spinner"></div>
-      <p id="loadingText">កំពុងដំណើរការ...</p>
+
+      <p id="loadingText">
+        កំពុងដំណើរការ...
+      </p>
+
     </div>
 
   </div>
 
-  <!-- Application Scripts -->
+
+  <!-- ================= APPLICATION SCRIPTS ================= -->
+
+  <!-- Application Configuration -->
   <script src="assets/js/config.js"></script>
+
+  <!-- Main Application v3.0 -->
   <script src="assets/js/app.js"></script>
 
 </body>
