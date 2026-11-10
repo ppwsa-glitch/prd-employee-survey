@@ -1,8 +1,18 @@
 
 /* =========================================================
    EPDS - Employee Development Survey
-   Frontend Application v2.2
-   Backend: Google Apps Script v2.1
+   Frontend Application v3.0
+   Backend: Google Apps Script v3.0
+
+   Features:
+   - Employee / Admin Unified Login
+   - Employee Account Registration
+   - Employee Survey Submission
+   - Admin Dashboard & Analytics
+   - Response Search & Details
+   - Export PDF (Khmer supported via Browser Print)
+   - Export Excel (.xlsx)
+   - No password or activation code in exports
 ========================================================= */
 
 (() => {
@@ -16,6 +26,8 @@
   let currentUser = null;
   let currentToken = null;
   let allResponses = [];
+  let dashboardSummary = {};
+  let dashboardAnalytics = {};
 
   /* =========================
      VIEW MANAGEMENT
@@ -31,7 +43,9 @@
   function showView(viewId) {
     views.forEach(id => {
       const element = $(id);
-      if (element) element.classList.toggle("hidden", id !== viewId);
+      if (element) {
+        element.classList.toggle("hidden", id !== viewId);
+      }
     });
   }
 
@@ -63,12 +77,16 @@
     if (!button) return;
 
     if (loading) {
-      button.dataset.originalText = button.textContent;
+      if (!button.dataset.originalText) {
+        button.dataset.originalText = button.textContent;
+      }
+
       button.disabled = true;
       button.textContent = text || "កំពុងដំណើរការ...";
     } else {
       button.disabled = false;
-      button.textContent = button.dataset.originalText || text || "Submit";
+      button.textContent =
+        button.dataset.originalText || text || "Submit";
     }
   }
 
@@ -132,6 +150,10 @@
     return String(value);
   }
 
+  function getRowValue(row, camelKey, snakeKey) {
+    return row?.[camelKey] ?? row?.[snakeKey] ?? "";
+  }
+
   function formatDate(value) {
     if (!value) return "-";
 
@@ -148,8 +170,42 @@
     });
   }
 
+  function formatDateTime(value) {
+    if (!value) return "-";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return String(value);
+    }
+
+    return date.toLocaleString("km-KH", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  }
+
   function numberFormat(value) {
     return Number(value || 0).toLocaleString("en-US");
+  }
+
+  function getTodayISO() {
+    const now = new Date();
+    const localDate = new Date(
+      now.getTime() - now.getTimezoneOffset() * 60000
+    );
+
+    return localDate.toISOString().slice(0, 10);
+  }
+
+  function normalizeResponseRows(data) {
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.responses)) return data.responses;
+    if (Array.isArray(data?.data)) return data.data;
+    return [];
   }
 
   /* =========================
@@ -168,6 +224,8 @@
     currentToken = null;
     currentUser = null;
     allResponses = [];
+    dashboardSummary = {};
+    dashboardAnalytics = {};
 
     sessionStorage.removeItem("epds_token");
     sessionStorage.removeItem("epds_user");
@@ -197,6 +255,7 @@
     if ($("loginIdentifier")) $("loginIdentifier").value = "";
 
     clearMessage("loginMessage");
+    clearMessage("responseMessage");
   }
 
   /* =========================
@@ -207,11 +266,14 @@
     event.preventDefault();
     clearMessage("loginMessage");
 
-    const identifier = $("loginIdentifier").value.trim();
-    const password = $("loginPassword").value;
+    const identifier = $("loginIdentifier")?.value.trim();
+    const password = $("loginPassword")?.value;
 
     if (!identifier || !password) {
-      showMessage("loginMessage", "សូមបញ្ចូលព័ត៌មានឱ្យបានគ្រប់គ្រាន់។");
+      showMessage(
+        "loginMessage",
+        "សូមបញ្ចូលព័ត៌មានឱ្យបានគ្រប់គ្រាន់។"
+      );
       return;
     }
 
@@ -224,7 +286,9 @@
       });
 
       if (!result.token || !result.role) {
-        throw new Error("Server មិនបានបញ្ជូនព័ត៌មាន Login ត្រឹមត្រូវទេ។");
+        throw new Error(
+          "Server មិនបានបញ្ជូនព័ត៌មាន Login ត្រឹមត្រូវទេ។"
+        );
       }
 
       if (result.role === "EMPLOYEE") {
@@ -242,7 +306,6 @@
         showEmployeeDashboard(user);
 
       } else if (result.role === "ADMIN") {
-
         const user = {
           role: "ADMIN",
           email: result.email || identifier,
@@ -250,7 +313,7 @@
         };
 
         saveSession(result.token, user);
-        showAdminDashboard(user);
+        await showAdminDashboard(user);
 
       } else {
         throw new Error("Role មិនត្រឹមត្រូវ។");
@@ -270,16 +333,41 @@
   function showEmployeeDashboard(user) {
     showView("employeeView");
 
-    $("employeeName").textContent = user.employeeName || "Employee";
-    $("employeeStaffId").textContent = user.staffId || "";
+    if ($("employeeName")) {
+      $("employeeName").textContent =
+        user.employeeName || "Employee";
+    }
 
-    $("profileName").textContent = user.employeeName || "-";
-    $("profileStaffId").textContent = user.staffId || "-";
-    $("profileDepartment").textContent = user.department || "-";
-    $("profilePosition").textContent = user.position || "-";
+    if ($("employeeStaffId")) {
+      $("employeeStaffId").textContent = user.staffId || "";
+    }
+
+    if ($("profileName")) {
+      $("profileName").textContent = user.employeeName || "-";
+    }
+
+    if ($("profileStaffId")) {
+      $("profileStaffId").textContent = user.staffId || "-";
+    }
+
+    if ($("profileDepartment")) {
+      $("profileDepartment").textContent = user.department || "-";
+    }
+
+    if ($("profilePosition")) {
+      $("profilePosition").textContent = user.position || "-";
+    }
 
     $("surveyForm")?.reset();
     clearMessage("surveyMessage");
+
+    const submitButton = $("submitSurveyBtn");
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent =
+        submitButton.dataset.originalText ||
+        "បញ្ជូនចម្លើយ";
+    }
   }
 
   /* =========================
@@ -290,27 +378,40 @@
     event.preventDefault();
     clearMessage("registerMessage");
 
-    const staffId = $("registerStaffId").value.trim();
-    const activationCode = $("activationCode").value.trim();
-    const password = $("registerPassword").value;
-    const confirmPassword = $("confirmPassword").value;
+    const staffId = $("registerStaffId")?.value.trim();
+    const activationCode = $("activationCode")?.value.trim();
+    const password = $("registerPassword")?.value;
+    const confirmPassword = $("confirmPassword")?.value;
 
     if (!staffId || !activationCode || !password || !confirmPassword) {
-      showMessage("registerMessage", "សូមបំពេញព័ត៌មានទាំងអស់។");
+      showMessage(
+        "registerMessage",
+        "សូមបំពេញព័ត៌មានទាំងអស់។"
+      );
       return;
     }
 
     if (password !== confirmPassword) {
-      showMessage("registerMessage", "Password ទាំងពីរមិនដូចគ្នាទេ។");
+      showMessage(
+        "registerMessage",
+        "Password ទាំងពីរមិនដូចគ្នាទេ។"
+      );
       return;
     }
 
-    if (password.length < 6) {
-      showMessage("registerMessage", "Password ត្រូវមានយ៉ាងហោចណាស់ ៦ តួអក្សរ។");
+    if (password.length < 8) {
+      showMessage(
+        "registerMessage",
+        "Password ត្រូវមានយ៉ាងហោចណាស់ ៨ តួអក្សរ។"
+      );
       return;
     }
 
-    setButtonLoading("registerBtn", true, "កំពុងបង្កើតគណនី...");
+    setButtonLoading(
+      "registerBtn",
+      true,
+      "កំពុងបង្កើតគណនី..."
+    );
 
     try {
       await api("activateAccount", {
@@ -319,7 +420,7 @@
         password
       });
 
-      $("registerForm").reset();
+      $("registerForm")?.reset();
 
       showMessage(
         "registerMessage",
@@ -327,9 +428,13 @@
         "success"
       );
 
-      setTimeout(() => {
+      window.setTimeout(() => {
         showView("loginView");
-        $("loginIdentifier").value = staffId;
+
+        if ($("loginIdentifier")) {
+          $("loginIdentifier").value = staffId;
+        }
+
         clearMessage("registerMessage");
       }, 1800);
 
@@ -346,7 +451,9 @@
 
   function getCheckedValues(name) {
     return Array.from(
-      document.querySelectorAll(`input[name="${name}"]:checked`)
+      document.querySelectorAll(
+        `input[name="${name}"]:checked`
+      )
     ).map(input => input.value);
   }
 
@@ -364,8 +471,8 @@
     const q2 = getCheckedValues("q2");
     const q3 = getCheckedValues("q3");
 
-    const q1Other = $("q1Other").value.trim();
-    const q4 = $("q4Comments").value.trim();
+    const q1Other = $("q1Other")?.value.trim() || "";
+    const q4 = $("q4Comments")?.value.trim() || "";
 
     if (q1.length === 0 || q2.length === 0 || q3.length === 0) {
       showMessage(
@@ -391,7 +498,11 @@
       q4
     };
 
-    setButtonLoading("submitSurveyBtn", true, "កំពុងបញ្ជូនចម្លើយ...");
+    setButtonLoading(
+      "submitSurveyBtn",
+      true,
+      "កំពុងបញ្ជូនចម្លើយ..."
+    );
 
     try {
       await api("submitSurvey", {
@@ -399,7 +510,7 @@
         answers
       });
 
-      $("surveyForm").reset();
+      $("surveyForm")?.reset();
 
       showMessage(
         "surveyMessage",
@@ -407,13 +518,18 @@
         "success"
       );
 
-      $("submitSurveyBtn").disabled = true;
-      $("submitSurveyBtn").textContent = "បានបញ្ជូនចម្លើយរួចរាល់";
+      const button = $("submitSurveyBtn");
+      if (button) {
+        button.disabled = true;
+        button.textContent = "បានបញ្ជូនចម្លើយរួចរាល់";
+      }
 
     } catch (error) {
       showMessage("surveyMessage", error.message);
     } finally {
-      if (!$("submitSurveyBtn").disabled) {
+      const button = $("submitSurveyBtn");
+
+      if (button && !button.disabled) {
         setButtonLoading("submitSurveyBtn", false);
       }
     }
@@ -426,8 +542,15 @@
   async function showAdminDashboard(user) {
     showView("adminView");
 
-    $("adminEmail").textContent = user.email || "Administrator";
-    $("adminRole").textContent = user.adminRole || "HR Admin";
+    if ($("adminEmail")) {
+      $("adminEmail").textContent =
+        user.email || "Administrator";
+    }
+
+    if ($("adminRole")) {
+      $("adminRole").textContent =
+        user.adminRole || "HR Admin";
+    }
 
     await loadAdminDashboard();
   }
@@ -439,6 +562,7 @@
     }
 
     setLoading(true, "កំពុងទាញយកទិន្នន័យ Dashboard...");
+    clearMessage("responseMessage");
 
     try {
       const [summary, analytics, responses] = await Promise.all([
@@ -447,17 +571,22 @@
         api("adminResponses", { token: currentToken })
       ]);
 
-      renderSummary(summary);
-      renderAnalytics(analytics);
+      dashboardSummary = summary || {};
+      dashboardAnalytics = analytics || {};
+      allResponses = normalizeResponseRows(responses);
 
-      allResponses = Array.isArray(responses)
-        ? responses
-        : (responses.responses || responses.data || []);
-
+      renderSummary(dashboardSummary);
+      renderAnalytics(dashboardAnalytics);
       renderResponses(allResponses);
 
     } catch (error) {
       showMessage("responseMessage", error.message);
+
+      if (
+        /token|session|unauthorized|expired/i.test(error.message)
+      ) {
+        logout();
+      }
     } finally {
       setLoading(false);
     }
@@ -468,26 +597,29 @@
   ========================= */
 
   function renderSummary(data) {
-    $("totalEmployees").textContent =
-      numberFormat(data.totalEmployees);
+    const fields = {
+      totalEmployees: data.totalEmployees,
+      activeEmployees: data.activeEmployees,
+      respondedEmployees: data.respondedEmployees,
+      pendingEmployees: data.pendingEmployees,
+      totalResponses: data.totalResponses
+    };
 
-    $("activeEmployees").textContent =
-      numberFormat(data.activeEmployees);
+    Object.entries(fields).forEach(([id, value]) => {
+      if ($(id)) {
+        $(id).textContent = numberFormat(value);
+      }
+    });
 
-    $("respondedEmployees").textContent =
-      numberFormat(data.respondedEmployees);
+    if ($("surveyStatus")) {
+      $("surveyStatus").textContent =
+        data.surveyStatus || "-";
+    }
 
-    $("pendingEmployees").textContent =
-      numberFormat(data.pendingEmployees);
-
-    $("totalResponses").textContent =
-      numberFormat(data.totalResponses);
-
-    $("surveyStatus").textContent =
-      data.surveyStatus || "-";
-
-    $("surveyId").textContent =
-      data.surveyId || "EPDS-2026";
+    if ($("surveyId")) {
+      $("surveyId").textContent =
+        data.surveyId || "EPDS-2026";
+    }
   }
 
   /* =========================
@@ -497,8 +629,18 @@
   function normalizeAggregate(data) {
     if (Array.isArray(data)) {
       return data.map(item => ({
-        label: item.label || item.name || item.department || item.value || "Other",
-        count: Number(item.count ?? item.total ?? item.valueCount ?? 0)
+        label:
+          item.label ||
+          item.name ||
+          item.department ||
+          item.value ||
+          "Other",
+        count: Number(
+          item.count ??
+          item.total ??
+          item.valueCount ??
+          0
+        )
       }));
     }
 
@@ -521,18 +663,27 @@
     if (!element) return;
 
     const items = normalizeAggregate(data)
-      .filter(item => item.label && Number.isFinite(item.count))
+      .filter(item =>
+        item.label && Number.isFinite(item.count)
+      )
       .sort((a, b) => b.count - a.count);
 
     if (!items.length) {
-      element.innerHTML = '<p class="empty-state">មិនទាន់មានទិន្នន័យ</p>';
+      element.innerHTML =
+        '<p class="empty-state">មិនទាន់មានទិន្នន័យ</p>';
       return;
     }
 
-    const max = Math.max(...items.map(item => item.count), 1);
+    const max = Math.max(
+      ...items.map(item => item.count),
+      1
+    );
 
     element.innerHTML = items.map(item => {
-      const percent = Math.max(0, Math.min(100, item.count / max * 100));
+      const percent = Math.max(
+        0,
+        Math.min(100, item.count / max * 100)
+      );
 
       return `
         <div class="analytics-item">
@@ -541,7 +692,10 @@
             <strong>${numberFormat(item.count)}</strong>
           </div>
           <div class="progress-track">
-            <div class="progress-fill" style="width:${percent}%"></div>
+            <div
+              class="progress-fill"
+              style="width:${percent}%"
+            ></div>
           </div>
         </div>
       `;
@@ -549,7 +703,12 @@
   }
 
   function renderAnalytics(data) {
-    renderAggregate("departmentAnalytics", data.department);
+    // Backend v3.0 returns "departments" (plural).
+    renderAggregate(
+      "departmentAnalytics",
+      data.departments ?? data.department
+    );
+
     renderAggregate("skillsAnalytics", data.skills);
     renderAggregate("developmentAnalytics", data.development);
     renderAggregate("supportAnalytics", data.support);
@@ -574,29 +733,48 @@
       return;
     }
 
-    tbody.innerHTML = rows.map((row, index) => `
-      <tr>
-        <td>${index + 1}</td>
-        <td>${escapeHTML(row.staffId || row.Staff_ID || "-")}</td>
-        <td>${escapeHTML(row.employeeName || row.Employee_Name || "-")}</td>
-        <td>${escapeHTML(row.department || row.Department || "-")}</td>
-        <td>${escapeHTML(row.position || row.Position || "-")}</td>
-        <td>${escapeHTML(formatDate(row.submissionDate || row.Submission_Date))}</td>
-        <td>
-          <button
-            type="button"
-            class="btn btn-small btn-outline response-detail-btn"
-            data-index="${index}"
-          >
-            មើលព័ត៌មាន
-          </button>
-        </td>
-      </tr>
-    `).join("");
+    tbody.innerHTML = rows.map(row => {
+      // Keep the original allResponses index so Details
+      // continues to work after filtering/searching.
+      const originalIndex = allResponses.indexOf(row);
+
+      return `
+        <tr>
+          <td>${originalIndex + 1}</td>
+          <td>${escapeHTML(
+            getRowValue(row, "staffId", "Staff_ID") || "-"
+          )}</td>
+          <td>${escapeHTML(
+            getRowValue(row, "employeeName", "Employee_Name") || "-"
+          )}</td>
+          <td>${escapeHTML(
+            getRowValue(row, "department", "Department") || "-"
+          )}</td>
+          <td>${escapeHTML(
+            getRowValue(row, "position", "Position") || "-"
+          )}</td>
+          <td>${escapeHTML(
+            formatDate(
+              getRowValue(row, "submissionDate", "Submission_Date")
+            )
+          )}</td>
+          <td>
+            <button
+              type="button"
+              class="btn btn-small btn-outline response-detail-btn"
+              data-index="${originalIndex}"
+            >
+              មើលព័ត៌មាន
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join("");
   }
 
   function filterResponses() {
-    const keyword = $("responseSearch").value.trim().toLowerCase();
+    const keyword =
+      $("responseSearch")?.value.trim().toLowerCase() || "";
 
     if (!keyword) {
       renderResponses(allResponses);
@@ -605,14 +783,10 @@
 
     const filtered = allResponses.filter(row => {
       const text = [
-        row.staffId,
-        row.Staff_ID,
-        row.employeeName,
-        row.Employee_Name,
-        row.department,
-        row.Department,
-        row.position,
-        row.Position
+        getRowValue(row, "staffId", "Staff_ID"),
+        getRowValue(row, "employeeName", "Employee_Name"),
+        getRowValue(row, "department", "Department"),
+        getRowValue(row, "position", "Position")
       ].join(" ").toLowerCase();
 
       return text.includes(keyword);
@@ -630,84 +804,632 @@
     if (!row) return;
 
     const fields = [
-      ["Staff ID", row.staffId || row.Staff_ID],
-      ["Employee Name", row.employeeName || row.Employee_Name],
-      ["Department", row.department || row.Department],
-      ["Position", row.position || row.Position],
-      ["Q1 - Skills", row.q1Skills || row.Q1_Skills],
-      ["Q1 - Other Skill", row.q1OtherSkill || row.Q1_Other_Skill],
-      ["Q2 - Development", row.q2Development || row.Q2_Development],
-      ["Q3 - Support", row.q3Support || row.Q3_Support],
-      ["Q4 - Comments", row.q4Comments || row.Q4_Comments],
-      ["Submission Date", row.submissionDate || row.Submission_Date]
+      [
+        "Staff ID",
+        getRowValue(row, "staffId", "Staff_ID")
+      ],
+      [
+        "Employee Name",
+        getRowValue(row, "employeeName", "Employee_Name")
+      ],
+      [
+        "Department",
+        getRowValue(row, "department", "Department")
+      ],
+      [
+        "Position",
+        getRowValue(row, "position", "Position")
+      ],
+      [
+        "Q1 - Skills",
+        getRowValue(row, "q1Skills", "Q1_Skills")
+      ],
+      [
+        "Q1 - Other Skill",
+        getRowValue(row, "q1OtherSkill", "Q1_Other_Skill")
+      ],
+      [
+        "Q2 - Development",
+        getRowValue(row, "q2Development", "Q2_Development")
+      ],
+      [
+        "Q3 - Support",
+        getRowValue(row, "q3Support", "Q3_Support")
+      ],
+      [
+        "Q4 - Comments",
+        getRowValue(row, "q4Comments", "Q4_Comments")
+      ],
+      [
+        "Submission Date",
+        getRowValue(row, "submissionDate", "Submission_Date")
+      ]
     ];
 
-    $("responseDetailContent").innerHTML = fields.map(([label, value]) => `
+    const content = $("responseDetailContent");
+    const modal = $("responseModal");
+
+    if (!content || !modal) return;
+
+    content.innerHTML = fields.map(([label, value]) => `
       <div class="detail-row">
         <strong>${escapeHTML(label)}</strong>
         <p>${escapeHTML(displayValue(value))}</p>
       </div>
     `).join("");
 
-    $("responseModal").classList.remove("hidden");
+    modal.classList.remove("hidden");
   }
 
   function closeResponseModal() {
-    $("responseModal").classList.add("hidden");
+    $("responseModal")?.classList.add("hidden");
   }
 
   /* =========================
-     CSV EXPORT
+     EXPORT DATA PREPARATION
   ========================= */
 
-  function exportCSV() {
+  function getExportRows() {
+    return allResponses.map((row, index) => ({
+      No: index + 1,
+      "Staff ID": getRowValue(row, "staffId", "Staff_ID"),
+      "Employee Name": getRowValue(
+        row,
+        "employeeName",
+        "Employee_Name"
+      ),
+      "Department": getRowValue(
+        row,
+        "department",
+        "Department"
+      ),
+      "Position": getRowValue(
+        row,
+        "position",
+        "Position"
+      ),
+      "Q1 Skills": displayValue(
+        getRowValue(row, "q1Skills", "Q1_Skills")
+      ),
+      "Q1 Other Skill": getRowValue(
+        row,
+        "q1OtherSkill",
+        "Q1_Other_Skill"
+      ),
+      "Q2 Development": displayValue(
+        getRowValue(row, "q2Development", "Q2_Development")
+      ),
+      "Q3 Support": displayValue(
+        getRowValue(row, "q3Support", "Q3_Support")
+      ),
+      "Q4 Comments": getRowValue(
+        row,
+        "q4Comments",
+        "Q4_Comments"
+      ),
+      "Submission Date": formatDateTime(
+        getRowValue(row, "submissionDate", "Submission_Date")
+      )
+    }));
+  }
+
+  function getSummaryExportRows() {
+    const summary = dashboardSummary || {};
+
+    return [
+      { Metric: "Survey ID", Value: summary.surveyId || "EPDS-2026" },
+      { Metric: "Survey Status", Value: summary.surveyStatus || "-" },
+      { Metric: "Total Employees", Value: Number(summary.totalEmployees || 0) },
+      { Metric: "Active Employees", Value: Number(summary.activeEmployees || 0) },
+      { Metric: "Total Responses", Value: Number(summary.totalResponses || 0) },
+      { Metric: "Responded Employees", Value: Number(summary.respondedEmployees || 0) },
+      { Metric: "Pending Employees", Value: Number(summary.pendingEmployees || 0) },
+      { Metric: "Export Date", Value: formatDateTime(new Date()) }
+    ];
+  }
+
+  function getAnalyticsExportRows() {
+    const analytics = dashboardAnalytics || {};
+    const rows = [];
+
+    const groups = [
+      ["Departments", analytics.departments ?? analytics.department],
+      ["Offices", analytics.offices],
+      ["Skills", analytics.skills],
+      ["Development", analytics.development],
+      ["Support", analytics.support]
+    ];
+
+    groups.forEach(([category, data]) => {
+      normalizeAggregate(data).forEach(item => {
+        rows.push({
+          Category: category,
+          Name: item.label,
+          Count: item.count
+        });
+      });
+    });
+
+    return rows;
+  }
+
+  /* =========================
+     EXCEL EXPORT (.XLSX)
+  ========================= */
+
+  let xlsxLibraryPromise = null;
+
+  function loadXLSXLibrary() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    if (xlsxLibraryPromise) return xlsxLibraryPromise;
+
+    xlsxLibraryPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+
+      script.src =
+        "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js";
+
+      script.async = true;
+
+      script.onload = () => {
+        if (window.XLSX) {
+          resolve(window.XLSX);
+        } else {
+          reject(new Error("មិនអាច Load Excel Library បានទេ។"));
+        }
+      };
+
+      script.onerror = () => {
+        xlsxLibraryPromise = null;
+        reject(
+          new Error(
+            "មិនអាចភ្ជាប់ Excel Library បានទេ។ សូមពិនិត្យ Internet របស់អ្នក។"
+          )
+        );
+      };
+
+      document.head.appendChild(script);
+    });
+
+    return xlsxLibraryPromise;
+  }
+
+  async function exportExcel() {
     if (!allResponses.length) {
-      showMessage("responseMessage", "មិនមានទិន្នន័យសម្រាប់ Export ទេ។");
+      showMessage(
+        "responseMessage",
+        "មិនមានទិន្នន័យសម្រាប់ Export ទេ។"
+      );
       return;
     }
 
-    const columns = [
-      ["Staff ID", "staffId", "Staff_ID"],
-      ["Employee Name", "employeeName", "Employee_Name"],
-      ["Department", "department", "Department"],
-      ["Position", "position", "Position"],
-      ["Q1 Skills", "q1Skills", "Q1_Skills"],
-      ["Q1 Other Skill", "q1OtherSkill", "Q1_Other_Skill"],
-      ["Q2 Development", "q2Development", "Q2_Development"],
-      ["Q3 Support", "q3Support", "Q3_Support"],
-      ["Q4 Comments", "q4Comments", "Q4_Comments"],
-      ["Submission Date", "submissionDate", "Submission_Date"]
+    setButtonLoading(
+      "exportExcelBtn",
+      true,
+      "កំពុងបង្កើត Excel..."
+    );
+
+    try {
+      const XLSX = await loadXLSXLibrary();
+
+      const workbook = XLSX.utils.book_new();
+
+      // Sheet 1: Summary
+      const summarySheet = XLSX.utils.json_to_sheet(
+        getSummaryExportRows()
+      );
+
+      summarySheet["!cols"] = [
+        { wch: 25 },
+        { wch: 30 }
+      ];
+
+      XLSX.utils.book_append_sheet(
+        workbook,
+        summarySheet,
+        "Summary"
+      );
+
+      // Sheet 2: Survey Responses
+      const responseRows = getExportRows();
+      const responseSheet = XLSX.utils.json_to_sheet(
+        responseRows
+      );
+
+      responseSheet["!cols"] = [
+        { wch: 8 },
+        { wch: 16 },
+        { wch: 28 },
+        { wch: 25 },
+        { wch: 22 },
+        { wch: 40 },
+        { wch: 30 },
+        { wch: 35 },
+        { wch: 40 },
+        { wch: 45 },
+        { wch: 22 }
+      ];
+
+      XLSX.utils.book_append_sheet(
+        workbook,
+        responseSheet,
+        "Survey Responses"
+      );
+
+      // Sheet 3: Analytics
+      const analyticsRows = getAnalyticsExportRows();
+
+      const analyticsSheet = XLSX.utils.json_to_sheet(
+        analyticsRows.length
+          ? analyticsRows
+          : [{ Category: "-", Name: "No data", Count: 0 }]
+      );
+
+      analyticsSheet["!cols"] = [
+        { wch: 20 },
+        { wch: 40 },
+        { wch: 15 }
+      ];
+
+      XLSX.utils.book_append_sheet(
+        workbook,
+        analyticsSheet,
+        "Analytics"
+      );
+
+      const filename =
+        `EPDS_Report_${getTodayISO()}.xlsx`;
+
+      XLSX.writeFile(workbook, filename, {
+        compression: true
+      });
+
+      showMessage(
+        "responseMessage",
+        "Export Excel បានជោគជ័យ។",
+        "success"
+      );
+
+    } catch (error) {
+      showMessage(
+        "responseMessage",
+        error.message || "មានបញ្ហាក្នុងការបង្កើត Excel។"
+      );
+    } finally {
+      setButtonLoading("exportExcelBtn", false);
+    }
+  }
+
+  /* =========================
+     PDF EXPORT - KHMER SUPPORT
+     Uses browser print engine.
+  ========================= */
+
+  function exportPDF() {
+    if (!allResponses.length) {
+      showMessage(
+        "responseMessage",
+        "មិនមានទិន្នន័យសម្រាប់ Export ទេ។"
+      );
+      return;
+    }
+
+    const printWindow = window.open(
+      "",
+      "_blank",
+      "width=1200,height=800"
+    );
+
+    if (!printWindow) {
+      showMessage(
+        "responseMessage",
+        "Browser បានទប់ស្កាត់ Popup។ សូមអនុញ្ញាត Popup សម្រាប់ Website នេះ រួចសាកល្បងម្ដងទៀត។"
+      );
+      return;
+    }
+
+    const summary = dashboardSummary || {};
+    const rows = getExportRows();
+
+    const tableRows = rows.map((row, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${escapeHTML(row["Staff ID"])}</td>
+        <td>${escapeHTML(row["Employee Name"])}</td>
+        <td>${escapeHTML(row["Department"])}</td>
+        <td>${escapeHTML(row["Position"])}</td>
+        <td>${escapeHTML(row["Q1 Skills"])}</td>
+        <td>${escapeHTML(row["Q2 Development"])}</td>
+        <td>${escapeHTML(row["Q3 Support"])}</td>
+        <td>${escapeHTML(row["Q4 Comments"])}</td>
+        <td>${escapeHTML(row["Submission Date"])}</td>
+      </tr>
+    `).join("");
+
+    const summaryHTML = `
+      <div class="summary-grid">
+        <div><strong>Survey ID</strong><span>${escapeHTML(summary.surveyId || "EPDS-2026")}</span></div>
+        <div><strong>Survey Status</strong><span>${escapeHTML(summary.surveyStatus || "-")}</span></div>
+        <div><strong>Total Employees</strong><span>${numberFormat(summary.totalEmployees)}</span></div>
+        <div><strong>Active Employees</strong><span>${numberFormat(summary.activeEmployees)}</span></div>
+        <div><strong>Total Responses</strong><span>${numberFormat(summary.totalResponses)}</span></div>
+        <div><strong>Responded Employees</strong><span>${numberFormat(summary.respondedEmployees)}</span></div>
+        <div><strong>Pending Employees</strong><span>${numberFormat(summary.pendingEmployees)}</span></div>
+      </div>
+    `;
+
+    const analyticsGroups = [
+      ["Departments", dashboardAnalytics.departments ?? dashboardAnalytics.department],
+      ["Offices", dashboardAnalytics.offices],
+      ["Skills", dashboardAnalytics.skills],
+      ["Development", dashboardAnalytics.development],
+      ["Support", dashboardAnalytics.support]
     ];
 
-    const csvEscape = value => {
-      const text = displayValue(value);
-      return `"${text.replace(/"/g, '""')}"`;
-    };
+    const analyticsHTML = analyticsGroups.map(([title, data]) => {
+      const items = normalizeAggregate(data);
 
-    const header = columns.map(column => csvEscape(column[0])).join(",");
+      if (!items.length) return "";
 
-    const body = allResponses.map(row => {
-      return columns.map(([, camel, snake]) => {
-        return csvEscape(row[camel] ?? row[snake] ?? "");
-      }).join(",");
-    });
+      return `
+        <section class="analytics-section">
+          <h3>${escapeHTML(title)}</h3>
+          <table class="analytics-table">
+            <thead>
+              <tr><th>Name</th><th>Count</th></tr>
+            </thead>
+            <tbody>
+              ${items.map(item => `
+                <tr>
+                  <td>${escapeHTML(item.label)}</td>
+                  <td>${numberFormat(item.count)}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </section>
+      `;
+    }).join("");
 
-    const csv = "\uFEFF" + [header, ...body].join("\r\n");
-    const blob = new Blob([csv], {
-      type: "text/csv;charset=utf-8;"
-    });
+    const documentHTML = `
+      <!DOCTYPE html>
+      <html lang="km">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+        <title>EPDS Survey Report</title>
 
-    link.href = url;
-    link.download = `EPDS_Responses_${new Date().toISOString().slice(0, 10)}.csv`;
+        <link
+          href="https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&family=Noto+Sans+Khmer:wght@400;500;700&display=swap"
+          rel="stylesheet"
+        >
 
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+        <style>
+          * {
+            box-sizing: border-box;
+          }
 
-    URL.revokeObjectURL(url);
+          body {
+            font-family: "Noto Sans Khmer", "Battambang", sans-serif;
+            color: #1f2937;
+            margin: 24px;
+            font-size: 11px;
+          }
+
+          h1 {
+            font-size: 21px;
+            text-align: center;
+            margin: 0 0 6px;
+          }
+
+          .subtitle {
+            text-align: center;
+            color: #64748b;
+            margin-bottom: 22px;
+            font-size: 12px;
+          }
+
+          h2 {
+            font-size: 15px;
+            margin: 22px 0 10px;
+            border-bottom: 1px solid #cbd5e1;
+            padding-bottom: 6px;
+          }
+
+          h3 {
+            font-size: 12px;
+            margin: 12px 0 6px;
+          }
+
+          .report-meta {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+            color: #475569;
+          }
+
+          .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+          }
+
+          .summary-grid > div {
+            border: 1px solid #dbe2ea;
+            border-radius: 5px;
+            padding: 9px;
+          }
+
+          .summary-grid strong,
+          .summary-grid span {
+            display: block;
+          }
+
+          .summary-grid strong {
+            color: #64748b;
+            margin-bottom: 4px;
+          }
+
+          .summary-grid span {
+            font-size: 14px;
+            font-weight: 700;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+
+          th, td {
+            border: 1px solid #cbd5e1;
+            padding: 6px;
+            text-align: left;
+            vertical-align: top;
+            overflow-wrap: anywhere;
+          }
+
+          th {
+            background: #f1f5f9;
+            font-weight: 700;
+          }
+
+          .analytics-section {
+            margin-bottom: 12px;
+            break-inside: avoid;
+          }
+
+          .analytics-table {
+            max-width: 600px;
+          }
+
+          .footer {
+            margin-top: 24px;
+            color: #64748b;
+            text-align: right;
+            font-size: 10px;
+          }
+
+          @page {
+            size: A4 landscape;
+            margin: 12mm;
+          }
+
+          @media print {
+            body {
+              margin: 0;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+
+            .no-print {
+              display: none !important;
+            }
+
+            thead {
+              display: table-header-group;
+            }
+
+            tr {
+              break-inside: avoid;
+            }
+          }
+
+          .print-toolbar {
+            margin-bottom: 18px;
+            padding: 12px;
+            background: #f1f5f9;
+            border-radius: 6px;
+            text-align: center;
+          }
+
+          .print-toolbar button {
+            padding: 9px 18px;
+            border: 0;
+            border-radius: 5px;
+            background: #2563eb;
+            color: white;
+            font-size: 13px;
+            cursor: pointer;
+          }
+        </style>
+      </head>
+
+      <body>
+        <div class="print-toolbar no-print">
+          <button onclick="window.print()">
+            Print / Save as PDF
+          </button>
+          <p>
+            សូមជ្រើសរើស "Save as PDF" ក្នុង Print Destination
+            ដើម្បីរក្សាទុកឯកសារ PDF។
+          </p>
+        </div>
+
+        <h1>ប្រព័ន្ធស្ទង់មតិការអភិវឌ្ឍសមត្ថភាពបុគ្គលិក</h1>
+        <div class="subtitle">
+          Employee Development Survey (EPDS) - Report
+        </div>
+
+        <div class="report-meta">
+          <span>Survey ID: ${escapeHTML(summary.surveyId || "EPDS-2026")}</span>
+          <span>Export Date: ${escapeHTML(formatDateTime(new Date()))}</span>
+        </div>
+
+        <h2>សេចក្តីសង្ខេប / Summary</h2>
+        ${summaryHTML}
+
+        <h2>លទ្ធផលវិភាគ / Analytics</h2>
+        ${analyticsHTML || "<p>No analytics data available.</p>"}
+
+        <h2>ចម្លើយស្ទង់មតិ / Survey Responses</h2>
+
+        <table>
+          <thead>
+            <tr>
+              <th>No.</th>
+              <th>Staff ID</th>
+              <th>Employee Name</th>
+              <th>Department</th>
+              <th>Position</th>
+              <th>Q1 Skills</th>
+              <th>Q2 Development</th>
+              <th>Q3 Support</th>
+              <th>Q4 Comments</th>
+              <th>Submission Date</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            ${tableRows}
+          </tbody>
+        </table>
+
+        <div class="footer">
+          Generated by EPDS - Employee Development Survey
+        </div>
+
+        <script>
+          window.addEventListener("load", () => {
+            document.fonts.ready.then(() => {
+              // Keep the print window open for the user.
+            });
+          });
+        <\/script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(documentHTML);
+    printWindow.document.close();
+
+    showMessage(
+      "responseMessage",
+      "បានបើកផ្ទាំង PDF Report។ សូមចុច Print / Save as PDF ដើម្បីរក្សាទុក។",
+      "success"
+    );
   }
 
   /* =========================
@@ -715,9 +1437,20 @@
   ========================= */
 
   function bindEvents() {
-    $("loginForm")?.addEventListener("submit", handleLogin);
-    $("registerForm")?.addEventListener("submit", handleRegistration);
-    $("surveyForm")?.addEventListener("submit", handleSurveySubmit);
+    $("loginForm")?.addEventListener(
+      "submit",
+      handleLogin
+    );
+
+    $("registerForm")?.addEventListener(
+      "submit",
+      handleRegistration
+    );
+
+    $("surveyForm")?.addEventListener(
+      "submit",
+      handleSurveySubmit
+    );
 
     $("showRegisterBtn")?.addEventListener("click", () => {
       clearMessage("registerMessage");
@@ -728,24 +1461,69 @@
       showView("loginView");
     });
 
-    $("employeeLogoutBtn")?.addEventListener("click", logout);
-    $("adminLogoutBtn")?.addEventListener("click", logout);
+    $("employeeLogoutBtn")?.addEventListener(
+      "click",
+      logout
+    );
 
-    $("refreshDashboardBtn")?.addEventListener("click", loadAdminDashboard);
+    $("adminLogoutBtn")?.addEventListener(
+      "click",
+      logout
+    );
 
-    $("responseSearch")?.addEventListener("input", filterResponses);
+    $("refreshDashboardBtn")?.addEventListener(
+      "click",
+      loadAdminDashboard
+    );
 
-    $("exportCsvBtn")?.addEventListener("click", exportCSV);
+    $("responseSearch")?.addEventListener(
+      "input",
+      filterResponses
+    );
 
-    $("responsesTableBody")?.addEventListener("click", event => {
-      const button = event.target.closest(".response-detail-btn");
-      if (!button) return;
+    // New export buttons
+    $("exportPdfBtn")?.addEventListener(
+      "click",
+      exportPDF
+    );
 
-      showResponseDetail(Number(button.dataset.index));
+    $("exportExcelBtn")?.addEventListener(
+      "click",
+      exportExcel
+    );
+
+    // Old CSV button intentionally has no event listener.
+
+    $("responsesTableBody")?.addEventListener(
+      "click",
+      event => {
+        const button = event.target.closest(
+          ".response-detail-btn"
+        );
+
+        if (!button) return;
+
+        showResponseDetail(
+          Number(button.dataset.index)
+        );
+      }
+    );
+
+    $("closeResponseModalBtn")?.addEventListener(
+      "click",
+      closeResponseModal
+    );
+
+    $("closeModalBackdrop")?.addEventListener(
+      "click",
+      closeResponseModal
+    );
+
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape") {
+        closeResponseModal();
+      }
     });
-
-    $("closeResponseModalBtn")?.addEventListener("click", closeResponseModal);
-    $("closeModalBackdrop")?.addEventListener("click", closeResponseModal);
   }
 
   /* =========================
@@ -773,6 +1551,9 @@
     logout();
   }
 
-  document.addEventListener("DOMContentLoaded", initializeApp);
+  document.addEventListener(
+    "DOMContentLoaded",
+    initializeApp
+  );
 
 })();
