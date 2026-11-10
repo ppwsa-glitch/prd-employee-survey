@@ -1,7 +1,7 @@
 
 /* =========================================================
    EPDS - Employee Development Survey
-   Frontend Application v3.0
+   Frontend Application v3.1
    Backend: Google Apps Script v3.0
 
    Features:
@@ -10,8 +10,9 @@
    - Employee Survey Submission
    - Admin Dashboard & Analytics
    - Response Search & Details
-   - Export PDF (Khmer supported via Browser Print)
-   - Export Excel (.xlsx)
+   - Excel Export (.xlsx) - iOS / Android / Desktop
+   - PDF Export (.pdf) - Khmer Font Support
+   - iOS Share Sheet / Save to Files
    - No password or activation code in exports
 ========================================================= */
 
@@ -29,9 +30,9 @@
   let dashboardSummary = {};
   let dashboardAnalytics = {};
 
-  /* =========================
+  /* ========================================================
      VIEW MANAGEMENT
-  ========================= */
+  ======================================================== */
 
   const views = [
     "loginView",
@@ -43,6 +44,7 @@
   function showView(viewId) {
     views.forEach(id => {
       const element = $(id);
+
       if (element) {
         element.classList.toggle("hidden", id !== viewId);
       }
@@ -90,9 +92,9 @@
     }
   }
 
-  /* =========================
+  /* ========================================================
      API CONNECTION
-  ========================= */
+  ======================================================== */
 
   async function api(action, payload = {}) {
     if (!API_URL) {
@@ -123,15 +125,17 @@
     }
 
     if (!json.success) {
-      throw new Error(json.message || "មានបញ្ហាក្នុងការដំណើរការ។");
+      throw new Error(
+        json.message || "មានបញ្ហាក្នុងការដំណើរការ។"
+      );
     }
 
     return json.data || {};
   }
 
-  /* =========================
+  /* ========================================================
      SAFE DISPLAY HELPERS
-  ========================= */
+  ======================================================== */
 
   function escapeHTML(value) {
     return String(value ?? "").replace(/[&<>"']/g, char => ({
@@ -144,9 +148,22 @@
   }
 
   function displayValue(value) {
-    if (Array.isArray(value)) return value.join(", ");
-    if (value === null || value === undefined || value === "") return "-";
-    if (typeof value === "object") return JSON.stringify(value);
+    if (Array.isArray(value)) {
+      return value.join(", ");
+    }
+
+    if (
+      value === null ||
+      value === undefined ||
+      value === ""
+    ) {
+      return "-";
+    }
+
+    if (typeof value === "object") {
+      return JSON.stringify(value);
+    }
+
     return String(value);
   }
 
@@ -194,8 +211,10 @@
 
   function getTodayISO() {
     const now = new Date();
+
     const localDate = new Date(
-      now.getTime() - now.getTimezoneOffset() * 60000
+      now.getTime() -
+      now.getTimezoneOffset() * 60000
     );
 
     return localDate.toISOString().slice(0, 10);
@@ -203,21 +222,31 @@
 
   function normalizeResponseRows(data) {
     if (Array.isArray(data)) return data;
-    if (Array.isArray(data?.responses)) return data.responses;
-    if (Array.isArray(data?.data)) return data.data;
+
+    if (Array.isArray(data?.responses)) {
+      return data.responses;
+    }
+
+    if (Array.isArray(data?.data)) {
+      return data.data;
+    }
+
     return [];
   }
 
-  /* =========================
+  /* ========================================================
      SESSION MANAGEMENT
-  ========================= */
+  ======================================================== */
 
   function saveSession(token, user) {
     currentToken = token;
     currentUser = user;
 
     sessionStorage.setItem("epds_token", token);
-    sessionStorage.setItem("epds_user", JSON.stringify(user));
+    sessionStorage.setItem(
+      "epds_user",
+      JSON.stringify(user)
+    );
   }
 
   function clearSession() {
@@ -240,6 +269,7 @@
     try {
       currentToken = token;
       currentUser = JSON.parse(user);
+
       return true;
     } catch {
       clearSession();
@@ -251,33 +281,47 @@
     clearSession();
     showView("loginView");
 
-    if ($("loginPassword")) $("loginPassword").value = "";
-    if ($("loginIdentifier")) $("loginIdentifier").value = "";
+    if ($("loginPassword")) {
+      $("loginPassword").value = "";
+    }
+
+    if ($("loginIdentifier")) {
+      $("loginIdentifier").value = "";
+    }
 
     clearMessage("loginMessage");
     clearMessage("responseMessage");
   }
 
-  /* =========================
+  /* ========================================================
      LOGIN - AUTOMATIC ROLE
-  ========================= */
+  ======================================================== */
 
   async function handleLogin(event) {
     event.preventDefault();
+
     clearMessage("loginMessage");
 
-    const identifier = $("loginIdentifier")?.value.trim();
-    const password = $("loginPassword")?.value;
+    const identifier =
+      $("loginIdentifier")?.value.trim();
+
+    const password =
+      $("loginPassword")?.value;
 
     if (!identifier || !password) {
       showMessage(
         "loginMessage",
         "សូមបញ្ចូលព័ត៌មានឱ្យបានគ្រប់គ្រាន់។"
       );
+
       return;
     }
 
-    setButtonLoading("loginBtn", true, "កំពុងផ្ទៀងផ្ទាត់...");
+    setButtonLoading(
+      "loginBtn",
+      true,
+      "កំពុងផ្ទៀងផ្ទាត់..."
+    );
 
     try {
       const result = await api("unifiedLogin", {
@@ -303,6 +347,7 @@
         };
 
         saveSession(result.token, user);
+
         showEmployeeDashboard(user);
 
       } else if (result.role === "ADMIN") {
@@ -313,6 +358,7 @@
         };
 
         saveSession(result.token, user);
+
         await showAdminDashboard(user);
 
       } else {
@@ -321,14 +367,15 @@
 
     } catch (error) {
       showMessage("loginMessage", error.message);
+
     } finally {
       setButtonLoading("loginBtn", false);
     }
   }
 
-  /* =========================
+  /* ========================================================
      EMPLOYEE DASHBOARD
-  ========================= */
+  ======================================================== */
 
   function showEmployeeDashboard(user) {
     showView("employeeView");
@@ -339,55 +386,77 @@
     }
 
     if ($("employeeStaffId")) {
-      $("employeeStaffId").textContent = user.staffId || "";
+      $("employeeStaffId").textContent =
+        user.staffId || "";
     }
 
     if ($("profileName")) {
-      $("profileName").textContent = user.employeeName || "-";
+      $("profileName").textContent =
+        user.employeeName || "-";
     }
 
     if ($("profileStaffId")) {
-      $("profileStaffId").textContent = user.staffId || "-";
+      $("profileStaffId").textContent =
+        user.staffId || "-";
     }
 
     if ($("profileDepartment")) {
-      $("profileDepartment").textContent = user.department || "-";
+      $("profileDepartment").textContent =
+        user.department || "-";
     }
 
     if ($("profilePosition")) {
-      $("profilePosition").textContent = user.position || "-";
+      $("profilePosition").textContent =
+        user.position || "-";
     }
 
     $("surveyForm")?.reset();
+
     clearMessage("surveyMessage");
 
     const submitButton = $("submitSurveyBtn");
+
     if (submitButton) {
       submitButton.disabled = false;
+
       submitButton.textContent =
         submitButton.dataset.originalText ||
         "បញ្ជូនចម្លើយ";
     }
   }
 
-  /* =========================
+  /* ========================================================
      ACCOUNT REGISTRATION
-  ========================= */
+  ======================================================== */
 
   async function handleRegistration(event) {
     event.preventDefault();
+
     clearMessage("registerMessage");
 
-    const staffId = $("registerStaffId")?.value.trim();
-    const activationCode = $("activationCode")?.value.trim();
-    const password = $("registerPassword")?.value;
-    const confirmPassword = $("confirmPassword")?.value;
+    const staffId =
+      $("registerStaffId")?.value.trim();
 
-    if (!staffId || !activationCode || !password || !confirmPassword) {
+    const activationCode =
+      $("activationCode")?.value.trim();
+
+    const password =
+      $("registerPassword")?.value;
+
+    const confirmPassword =
+      $("confirmPassword")?.value;
+
+    if (
+      !staffId ||
+      !activationCode ||
+      !password ||
+      !confirmPassword
+    ) {
       showMessage(
         "registerMessage",
         "សូមបំពេញព័ត៌មានទាំងអស់។"
       );
+
       return;
     }
 
@@ -396,6 +465,7 @@
         "registerMessage",
         "Password ទាំងពីរមិនដូចគ្នាទេ។"
       );
+
       return;
     }
 
@@ -404,6 +474,7 @@
         "registerMessage",
         "Password ត្រូវមានយ៉ាងហោចណាស់ ៨ តួអក្សរ។"
       );
+
       return;
     }
 
@@ -436,18 +507,20 @@
         }
 
         clearMessage("registerMessage");
+
       }, 1800);
 
     } catch (error) {
       showMessage("registerMessage", error.message);
+
     } finally {
       setButtonLoading("registerBtn", false);
     }
   }
 
-  /* =========================
+  /* ========================================================
      EMPLOYEE SURVEY SUBMISSION
-  ========================= */
+  ======================================================== */
 
   function getCheckedValues(name) {
     return Array.from(
@@ -459,10 +532,18 @@
 
   async function handleSurveySubmit(event) {
     event.preventDefault();
+
     clearMessage("surveyMessage");
 
-    if (!currentToken || currentUser?.role !== "EMPLOYEE") {
-      showMessage("surveyMessage", "សូម Login ម្តងទៀត។");
+    if (
+      !currentToken ||
+      currentUser?.role !== "EMPLOYEE"
+    ) {
+      showMessage(
+        "surveyMessage",
+        "សូម Login ម្តងទៀត។"
+      );
+
       logout();
       return;
     }
@@ -471,14 +552,22 @@
     const q2 = getCheckedValues("q2");
     const q3 = getCheckedValues("q3");
 
-    const q1Other = $("q1Other")?.value.trim() || "";
-    const q4 = $("q4Comments")?.value.trim() || "";
+    const q1Other =
+      $("q1Other")?.value.trim() || "";
 
-    if (q1.length === 0 || q2.length === 0 || q3.length === 0) {
+    const q4 =
+      $("q4Comments")?.value.trim() || "";
+
+    if (
+      q1.length === 0 ||
+      q2.length === 0 ||
+      q3.length === 0
+    ) {
       showMessage(
         "surveyMessage",
         "សូមជ្រើសរើសចម្លើយយ៉ាងហោចណាស់មួយសម្រាប់សំណួរ ១, ២ និង ៣។"
       );
+
       return;
     }
 
@@ -487,6 +576,7 @@
         "surveyMessage",
         "សូមបញ្ជាក់ជំនាញផ្សេងៗដែលអ្នកចង់រៀន។"
       );
+
       return;
     }
 
@@ -519,25 +609,31 @@
       );
 
       const button = $("submitSurveyBtn");
+
       if (button) {
         button.disabled = true;
-        button.textContent = "បានបញ្ជូនចម្លើយរួចរាល់";
+        button.textContent =
+          "បានបញ្ជូនចម្លើយរួចរាល់";
       }
 
     } catch (error) {
       showMessage("surveyMessage", error.message);
+
     } finally {
       const button = $("submitSurveyBtn");
 
       if (button && !button.disabled) {
-        setButtonLoading("submitSurveyBtn", false);
+        setButtonLoading(
+          "submitSurveyBtn",
+          false
+        );
       }
     }
   }
 
-  /* =========================
+  /* ========================================================
      ADMIN DASHBOARD
-  ========================= */
+  ======================================================== */
 
   async function showAdminDashboard(user) {
     showView("adminView");
@@ -556,45 +652,72 @@
   }
 
   async function loadAdminDashboard() {
-    if (!currentToken || currentUser?.role !== "ADMIN") {
+    if (
+      !currentToken ||
+      currentUser?.role !== "ADMIN"
+    ) {
       logout();
       return;
     }
 
-    setLoading(true, "កំពុងទាញយកទិន្នន័យ Dashboard...");
+    setLoading(
+      true,
+      "កំពុងទាញយកទិន្នន័យ Dashboard..."
+    );
+
     clearMessage("responseMessage");
 
     try {
-      const [summary, analytics, responses] = await Promise.all([
-        api("adminSummary", { token: currentToken }),
-        api("adminAnalytics", { token: currentToken }),
-        api("adminResponses", { token: currentToken })
+      const [
+        summary,
+        analytics,
+        responses
+      ] = await Promise.all([
+        api("adminSummary", {
+          token: currentToken
+        }),
+
+        api("adminAnalytics", {
+          token: currentToken
+        }),
+
+        api("adminResponses", {
+          token: currentToken
+        })
       ]);
 
       dashboardSummary = summary || {};
       dashboardAnalytics = analytics || {};
-      allResponses = normalizeResponseRows(responses);
+
+      allResponses =
+        normalizeResponseRows(responses);
 
       renderSummary(dashboardSummary);
       renderAnalytics(dashboardAnalytics);
       renderResponses(allResponses);
 
     } catch (error) {
-      showMessage("responseMessage", error.message);
+      showMessage(
+        "responseMessage",
+        error.message
+      );
 
       if (
-        /token|session|unauthorized|expired/i.test(error.message)
+        /token|session|unauthorized|expired/i.test(
+          error.message
+        )
       ) {
         logout();
       }
+
     } finally {
       setLoading(false);
     }
   }
 
-  /* =========================
+  /* ========================================================
      SUMMARY CARDS
-  ========================= */
+  ======================================================== */
 
   function renderSummary(data) {
     const fields = {
@@ -605,11 +728,14 @@
       totalResponses: data.totalResponses
     };
 
-    Object.entries(fields).forEach(([id, value]) => {
-      if ($(id)) {
-        $(id).textContent = numberFormat(value);
+    Object.entries(fields).forEach(
+      ([id, value]) => {
+        if ($(id)) {
+          $(id).textContent =
+            numberFormat(value);
+        }
       }
-    });
+    );
 
     if ($("surveyStatus")) {
       $("surveyStatus").textContent =
@@ -622,9 +748,9 @@
     }
   }
 
-  /* =========================
+  /* ========================================================
      ANALYTICS
-  ========================= */
+  ======================================================== */
 
   function normalizeAggregate(data) {
     if (Array.isArray(data)) {
@@ -635,6 +761,7 @@
           item.department ||
           item.value ||
           "Other",
+
         count: Number(
           item.count ??
           item.total ??
@@ -644,15 +771,21 @@
       }));
     }
 
-    if (data && typeof data === "object") {
-      return Object.entries(data).map(([label, count]) => ({
-        label,
-        count: Number(
-          typeof count === "object"
-            ? count.count ?? count.total ?? 0
-            : count
-        )
-      }));
+    if (
+      data &&
+      typeof data === "object"
+    ) {
+      return Object.entries(data).map(
+        ([label, count]) => ({
+          label,
+
+          count: Number(
+            typeof count === "object"
+              ? count.count ?? count.total ?? 0
+              : count
+          )
+        })
+      );
     }
 
     return [];
@@ -660,17 +793,20 @@
 
   function renderAggregate(elementId, data) {
     const element = $(elementId);
+
     if (!element) return;
 
     const items = normalizeAggregate(data)
       .filter(item =>
-        item.label && Number.isFinite(item.count)
+        item.label &&
+        Number.isFinite(item.count)
       )
       .sort((a, b) => b.count - a.count);
 
     if (!items.length) {
       element.innerHTML =
         '<p class="empty-state">មិនទាន់មានទិន្នន័យ</p>';
+
       return;
     }
 
@@ -682,7 +818,10 @@
     element.innerHTML = items.map(item => {
       const percent = Math.max(
         0,
-        Math.min(100, item.count / max * 100)
+        Math.min(
+          100,
+          item.count / max * 100
+        )
       );
 
       return `
@@ -691,6 +830,7 @@
             <span>${escapeHTML(item.label)}</span>
             <strong>${numberFormat(item.count)}</strong>
           </div>
+
           <div class="progress-track">
             <div
               class="progress-fill"
@@ -703,23 +843,39 @@
   }
 
   function renderAnalytics(data) {
-    // Backend v3.0 returns "departments" (plural).
     renderAggregate(
       "departmentAnalytics",
       data.departments ?? data.department
     );
 
-    renderAggregate("skillsAnalytics", data.skills);
-    renderAggregate("developmentAnalytics", data.development);
-    renderAggregate("supportAnalytics", data.support);
+    renderAggregate(
+      "skillsAnalytics",
+      data.skills
+    );
+
+    renderAggregate(
+      "developmentAnalytics",
+      data.development
+    );
+
+    renderAggregate(
+      "supportAnalytics",
+      data.support
+    );
+
+    renderAggregate(
+      "officeAnalytics",
+      data.offices
+    );
   }
 
-  /* =========================
+  /* ========================================================
      RESPONSE TABLE
-  ========================= */
+  ======================================================== */
 
   function renderResponses(rows) {
     const tbody = $("responsesTableBody");
+
     if (!tbody) return;
 
     if (!rows || rows.length === 0) {
@@ -730,34 +886,70 @@
           </td>
         </tr>
       `;
+
       return;
     }
 
     tbody.innerHTML = rows.map(row => {
-      // Keep the original allResponses index so Details
-      // continues to work after filtering/searching.
-      const originalIndex = allResponses.indexOf(row);
+      const originalIndex =
+        allResponses.indexOf(row);
 
       return `
         <tr>
           <td>${originalIndex + 1}</td>
-          <td>${escapeHTML(
-            getRowValue(row, "staffId", "Staff_ID") || "-"
-          )}</td>
-          <td>${escapeHTML(
-            getRowValue(row, "employeeName", "Employee_Name") || "-"
-          )}</td>
-          <td>${escapeHTML(
-            getRowValue(row, "department", "Department") || "-"
-          )}</td>
-          <td>${escapeHTML(
-            getRowValue(row, "position", "Position") || "-"
-          )}</td>
-          <td>${escapeHTML(
-            formatDate(
-              getRowValue(row, "submissionDate", "Submission_Date")
-            )
-          )}</td>
+
+          <td>
+            ${escapeHTML(
+              getRowValue(
+                row,
+                "staffId",
+                "Staff_ID"
+              ) || "-"
+            )}
+          </td>
+
+          <td>
+            ${escapeHTML(
+              getRowValue(
+                row,
+                "employeeName",
+                "Employee_Name"
+              ) || "-"
+            )}
+          </td>
+
+          <td>
+            ${escapeHTML(
+              getRowValue(
+                row,
+                "department",
+                "Department"
+              ) || "-"
+            )}
+          </td>
+
+          <td>
+            ${escapeHTML(
+              getRowValue(
+                row,
+                "position",
+                "Position"
+              ) || "-"
+            )}
+          </td>
+
+          <td>
+            ${escapeHTML(
+              formatDate(
+                getRowValue(
+                  row,
+                  "submissionDate",
+                  "Submission_Date"
+                )
+              )
+            )}
+          </td>
+
           <td>
             <button
               type="button"
@@ -774,7 +966,9 @@
 
   function filterResponses() {
     const keyword =
-      $("responseSearch")?.value.trim().toLowerCase() || "";
+      $("responseSearch")?.value
+        .trim()
+        .toLowerCase() || "";
 
     if (!keyword) {
       renderResponses(allResponses);
@@ -795,12 +989,13 @@
     renderResponses(filtered);
   }
 
-  /* =========================
+  /* ========================================================
      RESPONSE DETAIL MODAL
-  ========================= */
+  ======================================================== */
 
   function showResponseDetail(index) {
     const row = allResponses[index];
+
     if (!row) return;
 
     const fields = [
@@ -851,12 +1046,14 @@
 
     if (!content || !modal) return;
 
-    content.innerHTML = fields.map(([label, value]) => `
-      <div class="detail-row">
-        <strong>${escapeHTML(label)}</strong>
-        <p>${escapeHTML(displayValue(value))}</p>
-      </div>
-    `).join("");
+    content.innerHTML = fields.map(
+      ([label, value]) => `
+        <div class="detail-row">
+          <strong>${escapeHTML(label)}</strong>
+          <p>${escapeHTML(displayValue(value))}</p>
+        </div>
+      `
+    ).join("");
 
     modal.classList.remove("hidden");
   }
@@ -865,50 +1062,80 @@
     $("responseModal")?.classList.add("hidden");
   }
 
-  /* =========================
+  /* ========================================================
      EXPORT DATA PREPARATION
-  ========================= */
+  ======================================================== */
 
   function getExportRows() {
     return allResponses.map((row, index) => ({
       No: index + 1,
-      "Staff ID": getRowValue(row, "staffId", "Staff_ID"),
+
+      "Staff ID": getRowValue(
+        row,
+        "staffId",
+        "Staff_ID"
+      ),
+
       "Employee Name": getRowValue(
         row,
         "employeeName",
         "Employee_Name"
       ),
+
       "Department": getRowValue(
         row,
         "department",
         "Department"
       ),
+
       "Position": getRowValue(
         row,
         "position",
         "Position"
       ),
+
       "Q1 Skills": displayValue(
-        getRowValue(row, "q1Skills", "Q1_Skills")
+        getRowValue(
+          row,
+          "q1Skills",
+          "Q1_Skills"
+        )
       ),
+
       "Q1 Other Skill": getRowValue(
         row,
         "q1OtherSkill",
         "Q1_Other_Skill"
       ),
+
       "Q2 Development": displayValue(
-        getRowValue(row, "q2Development", "Q2_Development")
+        getRowValue(
+          row,
+          "q2Development",
+          "Q2_Development"
+        )
       ),
+
       "Q3 Support": displayValue(
-        getRowValue(row, "q3Support", "Q3_Support")
+        getRowValue(
+          row,
+          "q3Support",
+          "Q3_Support"
+        )
       ),
+
       "Q4 Comments": getRowValue(
         row,
         "q4Comments",
         "Q4_Comments"
       ),
+
       "Submission Date": formatDateTime(
-        getRowValue(row, "submissionDate", "Submission_Date")
+        getRowValue(
+          row,
+          "submissionDate",
+          "Submission_Date"
+        )
       )
     }));
   }
@@ -917,23 +1144,50 @@
     const summary = dashboardSummary || {};
 
     return [
-      { Metric: "Survey ID", Value: summary.surveyId || "EPDS-2026" },
-      { Metric: "Survey Status", Value: summary.surveyStatus || "-" },
-      { Metric: "Total Employees", Value: Number(summary.totalEmployees || 0) },
-      { Metric: "Active Employees", Value: Number(summary.activeEmployees || 0) },
-      { Metric: "Total Responses", Value: Number(summary.totalResponses || 0) },
-      { Metric: "Responded Employees", Value: Number(summary.respondedEmployees || 0) },
-      { Metric: "Pending Employees", Value: Number(summary.pendingEmployees || 0) },
-      { Metric: "Export Date", Value: formatDateTime(new Date()) }
+      {
+        Metric: "Survey ID",
+        Value: summary.surveyId || "EPDS-2026"
+      },
+      {
+        Metric: "Survey Status",
+        Value: summary.surveyStatus || "-"
+      },
+      {
+        Metric: "Total Employees",
+        Value: Number(summary.totalEmployees || 0)
+      },
+      {
+        Metric: "Active Employees",
+        Value: Number(summary.activeEmployees || 0)
+      },
+      {
+        Metric: "Total Responses",
+        Value: Number(summary.totalResponses || 0)
+      },
+      {
+        Metric: "Responded Employees",
+        Value: Number(summary.respondedEmployees || 0)
+      },
+      {
+        Metric: "Pending Employees",
+        Value: Number(summary.pendingEmployees || 0)
+      },
+      {
+        Metric: "Export Date",
+        Value: formatDateTime(new Date())
+      }
     ];
   }
 
   function getAnalyticsExportRows() {
-    const analytics = dashboardAnalytics || {};
+    const analytics = dashboardAnalytics || [];
     const rows = [];
 
     const groups = [
-      ["Departments", analytics.departments ?? analytics.department],
+      [
+        "Departments",
+        analytics.departments ?? analytics.department
+      ],
       ["Offices", analytics.offices],
       ["Skills", analytics.skills],
       ["Development", analytics.development],
@@ -953,43 +1207,126 @@
     return rows;
   }
 
-  /* =========================
+  /* ========================================================
+     UNIVERSAL FILE SHARE / DOWNLOAD
+     iOS / Android / Desktop
+  ======================================================== */
+
+  async function shareOrDownload(
+    blob,
+    filename,
+    mimeType
+  ) {
+    // iOS / iPadOS Share Sheet
+    try {
+      if (
+        typeof File !== "undefined" &&
+        navigator.share &&
+        navigator.canShare
+      ) {
+        const file = new File(
+          [blob],
+          filename,
+          { type: mimeType }
+        );
+
+        if (
+          navigator.canShare({
+            files: [file]
+          })
+        ) {
+          await navigator.share({
+            files: [file],
+            title: filename
+          });
+
+          return "shared";
+        }
+      }
+    } catch (error) {
+      if (error.name === "AbortError") {
+        return "cancelled";
+      }
+
+      console.warn(
+        "Share Sheet unavailable:",
+        error
+      );
+    }
+
+    // Fallback: Browser Download
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = filename;
+    link.style.display = "none";
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    window.setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 60000);
+
+    return "downloaded";
+  }
+
+  /* ========================================================
      EXCEL EXPORT (.XLSX)
-  ========================= */
+     iOS Share Sheet Support
+  ======================================================== */
 
   let xlsxLibraryPromise = null;
 
   function loadXLSXLibrary() {
-    if (window.XLSX) return Promise.resolve(window.XLSX);
-    if (xlsxLibraryPromise) return xlsxLibraryPromise;
+    if (window.XLSX) {
+      return Promise.resolve(window.XLSX);
+    }
 
-    xlsxLibraryPromise = new Promise((resolve, reject) => {
-      const script = document.createElement("script");
+    if (xlsxLibraryPromise) {
+      return xlsxLibraryPromise;
+    }
 
-      script.src =
-        "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js";
+    xlsxLibraryPromise = new Promise(
+      (resolve, reject) => {
+        const script =
+          document.createElement("script");
 
-      script.async = true;
+        script.src =
+          "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js";
 
-      script.onload = () => {
-        if (window.XLSX) {
-          resolve(window.XLSX);
-        } else {
-          reject(new Error("មិនអាច Load Excel Library បានទេ។"));
-        }
-      };
+        script.async = true;
 
-      script.onerror = () => {
-        xlsxLibraryPromise = null;
-        reject(
-          new Error(
-            "មិនអាចភ្ជាប់ Excel Library បានទេ។ សូមពិនិត្យ Internet របស់អ្នក។"
-          )
-        );
-      };
+        script.onload = () => {
+          if (window.XLSX) {
+            resolve(window.XLSX);
+          } else {
+            xlsxLibraryPromise = null;
 
-      document.head.appendChild(script);
-    });
+            reject(
+              new Error(
+                "មិនអាច Load Excel Library បានទេ។"
+              )
+            );
+          }
+        };
+
+        script.onerror = () => {
+          xlsxLibraryPromise = null;
+
+          reject(
+            new Error(
+              "មិនអាចភ្ជាប់ Excel Library បានទេ។ សូមពិនិត្យ Internet។"
+            )
+          );
+        };
+
+        document.head.appendChild(script);
+      }
+    );
 
     return xlsxLibraryPromise;
   }
@@ -1000,6 +1337,7 @@
         "responseMessage",
         "មិនមានទិន្នន័យសម្រាប់ Export ទេ។"
       );
+
       return;
     }
 
@@ -1015,9 +1353,10 @@
       const workbook = XLSX.utils.book_new();
 
       // Sheet 1: Summary
-      const summarySheet = XLSX.utils.json_to_sheet(
-        getSummaryExportRows()
-      );
+      const summarySheet =
+        XLSX.utils.json_to_sheet(
+          getSummaryExportRows()
+        );
 
       summarySheet["!cols"] = [
         { wch: 25 },
@@ -1031,10 +1370,10 @@
       );
 
       // Sheet 2: Survey Responses
-      const responseRows = getExportRows();
-      const responseSheet = XLSX.utils.json_to_sheet(
-        responseRows
-      );
+      const responseSheet =
+        XLSX.utils.json_to_sheet(
+          getExportRows()
+        );
 
       responseSheet["!cols"] = [
         { wch: 8 },
@@ -1057,13 +1396,21 @@
       );
 
       // Sheet 3: Analytics
-      const analyticsRows = getAnalyticsExportRows();
+      const analyticsRows =
+        getAnalyticsExportRows();
 
-      const analyticsSheet = XLSX.utils.json_to_sheet(
-        analyticsRows.length
-          ? analyticsRows
-          : [{ Category: "-", Name: "No data", Count: 0 }]
-      );
+      const analyticsSheet =
+        XLSX.utils.json_to_sheet(
+          analyticsRows.length
+            ? analyticsRows
+            : [
+                {
+                  Category: "-",
+                  Name: "No data",
+                  Count: 0
+                }
+              ]
+        );
 
       analyticsSheet["!cols"] = [
         { wch: 20 },
@@ -1077,315 +1424,303 @@
         "Analytics"
       );
 
+      // Generate XLSX as Blob
+      const excelBuffer = XLSX.write(
+        workbook,
+        {
+          bookType: "xlsx",
+          type: "array",
+          compression: true
+        }
+      );
+
+      const blob = new Blob(
+        [excelBuffer],
+        {
+          type:
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        }
+      );
+
       const filename =
         `EPDS_Report_${getTodayISO()}.xlsx`;
 
-      XLSX.writeFile(workbook, filename, {
-        compression: true
-      });
+      const result = await shareOrDownload(
+        blob,
+        filename,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+
+      if (result === "cancelled") {
+        showMessage(
+          "responseMessage",
+          "អ្នកបានបោះបង់ការរក្សាទុក Excel។"
+        );
+
+        return;
+      }
 
       showMessage(
         "responseMessage",
-        "Export Excel បានជោគជ័យ។",
+        "បានបង្កើត Excel រួចរាល់។ នៅលើ iPhone សូមជ្រើសរើស Save to Files ក្នុង Share Sheet។",
         "success"
       );
 
     } catch (error) {
+      console.error(
+        "Excel Export Error:",
+        error
+      );
+
       showMessage(
         "responseMessage",
-        error.message || "មានបញ្ហាក្នុងការបង្កើត Excel។"
+        error.message ||
+        "មានបញ្ហាក្នុងការបង្កើត Excel។"
       );
+
     } finally {
-      setButtonLoading("exportExcelBtn", false);
+      setButtonLoading(
+        "exportExcelBtn",
+        false
+      );
     }
   }
 
-  /* =========================
-     PDF EXPORT - KHMER SUPPORT
-     Uses browser print engine.
-  ========================= */
+  /* ========================================================
+     PDF LIBRARY LOADER
+  ======================================================== */
 
-  function exportPDF() {
-    if (!allResponses.length) {
-      showMessage(
-        "responseMessage",
-        "មិនមានទិន្នន័យសម្រាប់ Export ទេ។"
-      );
-      return;
+  let pdfLibraryPromise = null;
+
+  function loadPDFLibrary() {
+    if (window.html2pdf) {
+      return Promise.resolve(window.html2pdf);
     }
 
-    const printWindow = window.open(
-      "",
-      "_blank",
-      "width=1200,height=800"
+    if (pdfLibraryPromise) {
+      return pdfLibraryPromise;
+    }
+
+    pdfLibraryPromise = new Promise(
+      (resolve, reject) => {
+        const script =
+          document.createElement("script");
+
+        script.src =
+          "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.3/html2pdf.bundle.min.js";
+
+        script.async = true;
+
+        script.onload = () => {
+          if (window.html2pdf) {
+            resolve(window.html2pdf);
+          } else {
+            pdfLibraryPromise = null;
+
+            reject(
+              new Error(
+                "មិនអាច Load PDF Library បានទេ។"
+              )
+            );
+          }
+        };
+
+        script.onerror = () => {
+          pdfLibraryPromise = null;
+
+          reject(
+            new Error(
+              "មិនអាចភ្ជាប់ PDF Library បានទេ។ សូមពិនិត្យ Internet។"
+            )
+          );
+        };
+
+        document.head.appendChild(script);
+      }
     );
 
-    if (!printWindow) {
-      showMessage(
-        "responseMessage",
-        "Browser បានទប់ស្កាត់ Popup។ សូមអនុញ្ញាត Popup សម្រាប់ Website នេះ រួចសាកល្បងម្ដងទៀត។"
-      );
-      return;
-    }
+    return pdfLibraryPromise;
+  }
 
+  /* ========================================================
+     PDF REPORT HTML
+  ======================================================== */
+
+  function buildPDFReportHTML() {
     const summary = dashboardSummary || {};
     const rows = getExportRows();
 
-    const tableRows = rows.map((row, index) => `
-      <tr>
-        <td>${index + 1}</td>
-        <td>${escapeHTML(row["Staff ID"])}</td>
-        <td>${escapeHTML(row["Employee Name"])}</td>
-        <td>${escapeHTML(row["Department"])}</td>
-        <td>${escapeHTML(row["Position"])}</td>
-        <td>${escapeHTML(row["Q1 Skills"])}</td>
-        <td>${escapeHTML(row["Q2 Development"])}</td>
-        <td>${escapeHTML(row["Q3 Support"])}</td>
-        <td>${escapeHTML(row["Q4 Comments"])}</td>
-        <td>${escapeHTML(row["Submission Date"])}</td>
-      </tr>
-    `).join("");
+    const tableRows = rows.map(
+      (row, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${escapeHTML(row["Staff ID"])}</td>
+          <td>${escapeHTML(row["Employee Name"])}</td>
+          <td>${escapeHTML(row["Department"])}</td>
+          <td>${escapeHTML(row["Position"])}</td>
+          <td>${escapeHTML(row["Q1 Skills"])}</td>
+          <td>${escapeHTML(row["Q2 Development"])}</td>
+          <td>${escapeHTML(row["Q3 Support"])}</td>
+          <td>${escapeHTML(row["Q4 Comments"])}</td>
+          <td>${escapeHTML(row["Submission Date"])}</td>
+        </tr>
+      `
+    ).join("");
 
     const summaryHTML = `
       <div class="summary-grid">
-        <div><strong>Survey ID</strong><span>${escapeHTML(summary.surveyId || "EPDS-2026")}</span></div>
-        <div><strong>Survey Status</strong><span>${escapeHTML(summary.surveyStatus || "-")}</span></div>
-        <div><strong>Total Employees</strong><span>${numberFormat(summary.totalEmployees)}</span></div>
-        <div><strong>Active Employees</strong><span>${numberFormat(summary.activeEmployees)}</span></div>
-        <div><strong>Total Responses</strong><span>${numberFormat(summary.totalResponses)}</span></div>
-        <div><strong>Responded Employees</strong><span>${numberFormat(summary.respondedEmployees)}</span></div>
-        <div><strong>Pending Employees</strong><span>${numberFormat(summary.pendingEmployees)}</span></div>
+
+        <div>
+          <strong>Survey ID</strong>
+          <span>
+            ${escapeHTML(
+              summary.surveyId || "EPDS-2026"
+            )}
+          </span>
+        </div>
+
+        <div>
+          <strong>Survey Status</strong>
+          <span>
+            ${escapeHTML(
+              summary.surveyStatus || "-"
+            )}
+          </span>
+        </div>
+
+        <div>
+          <strong>Total Employees</strong>
+          <span>
+            ${numberFormat(summary.totalEmployees)}
+          </span>
+        </div>
+
+        <div>
+          <strong>Active Employees</strong>
+          <span>
+            ${numberFormat(summary.activeEmployees)}
+          </span>
+        </div>
+
+        <div>
+          <strong>Total Responses</strong>
+          <span>
+            ${numberFormat(summary.totalResponses)}
+          </span>
+        </div>
+
+        <div>
+          <strong>Responded Employees</strong>
+          <span>
+            ${numberFormat(summary.respondedEmployees)}
+          </span>
+        </div>
+
+        <div>
+          <strong>Pending Employees</strong>
+          <span>
+            ${numberFormat(summary.pendingEmployees)}
+          </span>
+        </div>
+
       </div>
     `;
 
     const analyticsGroups = [
-      ["Departments", dashboardAnalytics.departments ?? dashboardAnalytics.department],
-      ["Offices", dashboardAnalytics.offices],
-      ["Skills", dashboardAnalytics.skills],
-      ["Development", dashboardAnalytics.development],
-      ["Support", dashboardAnalytics.support]
+      [
+        "Departments",
+        dashboardAnalytics.departments ??
+        dashboardAnalytics.department
+      ],
+      [
+        "Offices",
+        dashboardAnalytics.offices
+      ],
+      [
+        "Skills",
+        dashboardAnalytics.skills
+      ],
+      [
+        "Development",
+        dashboardAnalytics.development
+      ],
+      [
+        "Support",
+        dashboardAnalytics.support
+      ]
     ];
 
-    const analyticsHTML = analyticsGroups.map(([title, data]) => {
-      const items = normalizeAggregate(data);
+    const analyticsHTML = analyticsGroups.map(
+      ([title, data]) => {
+        const items = normalizeAggregate(data);
 
-      if (!items.length) return "";
+        if (!items.length) return "";
 
-      return `
-        <section class="analytics-section">
-          <h3>${escapeHTML(title)}</h3>
-          <table class="analytics-table">
-            <thead>
-              <tr><th>Name</th><th>Count</th></tr>
-            </thead>
-            <tbody>
-              ${items.map(item => `
+        return `
+          <section class="analytics-section">
+
+            <h3>${escapeHTML(title)}</h3>
+
+            <table>
+              <thead>
                 <tr>
-                  <td>${escapeHTML(item.label)}</td>
-                  <td>${numberFormat(item.count)}</td>
+                  <th>Name</th>
+                  <th>Count</th>
                 </tr>
-              `).join("")}
-            </tbody>
-          </table>
-        </section>
-      `;
-    }).join("");
+              </thead>
 
-    const documentHTML = `
-      <!DOCTYPE html>
-      <html lang="km">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <tbody>
+                ${items.map(item => `
+                  <tr>
+                    <td>${escapeHTML(item.label)}</td>
+                    <td>${numberFormat(item.count)}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
 
-        <title>EPDS Survey Report</title>
+          </section>
+        `;
+      }
+    ).join("");
 
-        <link
-          href="https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&family=Noto+Sans+Khmer:wght@400;500;700&display=swap"
-          rel="stylesheet"
-        >
+    return `
+      <div id="epdsPdfReport">
 
-        <style>
-          * {
-            box-sizing: border-box;
-          }
+        <h1>
+          ប្រព័ន្ធស្ទង់មតិការអភិវឌ្ឍសមត្ថភាពបុគ្គលិក
+        </h1>
 
-          body {
-            font-family: "Noto Sans Khmer", "Battambang", sans-serif;
-            color: #1f2937;
-            margin: 24px;
-            font-size: 11px;
-          }
-
-          h1 {
-            font-size: 21px;
-            text-align: center;
-            margin: 0 0 6px;
-          }
-
-          .subtitle {
-            text-align: center;
-            color: #64748b;
-            margin-bottom: 22px;
-            font-size: 12px;
-          }
-
-          h2 {
-            font-size: 15px;
-            margin: 22px 0 10px;
-            border-bottom: 1px solid #cbd5e1;
-            padding-bottom: 6px;
-          }
-
-          h3 {
-            font-size: 12px;
-            margin: 12px 0 6px;
-          }
-
-          .report-meta {
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            margin-bottom: 12px;
-            color: #475569;
-          }
-
-          .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-          }
-
-          .summary-grid > div {
-            border: 1px solid #dbe2ea;
-            border-radius: 5px;
-            padding: 9px;
-          }
-
-          .summary-grid strong,
-          .summary-grid span {
-            display: block;
-          }
-
-          .summary-grid strong {
-            color: #64748b;
-            margin-bottom: 4px;
-          }
-
-          .summary-grid span {
-            font-size: 14px;
-            font-weight: 700;
-          }
-
-          table {
-            width: 100%;
-            border-collapse: collapse;
-          }
-
-          th, td {
-            border: 1px solid #cbd5e1;
-            padding: 6px;
-            text-align: left;
-            vertical-align: top;
-            overflow-wrap: anywhere;
-          }
-
-          th {
-            background: #f1f5f9;
-            font-weight: 700;
-          }
-
-          .analytics-section {
-            margin-bottom: 12px;
-            break-inside: avoid;
-          }
-
-          .analytics-table {
-            max-width: 600px;
-          }
-
-          .footer {
-            margin-top: 24px;
-            color: #64748b;
-            text-align: right;
-            font-size: 10px;
-          }
-
-          @page {
-            size: A4 landscape;
-            margin: 12mm;
-          }
-
-          @media print {
-            body {
-              margin: 0;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-            }
-
-            .no-print {
-              display: none !important;
-            }
-
-            thead {
-              display: table-header-group;
-            }
-
-            tr {
-              break-inside: avoid;
-            }
-          }
-
-          .print-toolbar {
-            margin-bottom: 18px;
-            padding: 12px;
-            background: #f1f5f9;
-            border-radius: 6px;
-            text-align: center;
-          }
-
-          .print-toolbar button {
-            padding: 9px 18px;
-            border: 0;
-            border-radius: 5px;
-            background: #2563eb;
-            color: white;
-            font-size: 13px;
-            cursor: pointer;
-          }
-        </style>
-      </head>
-
-      <body>
-        <div class="print-toolbar no-print">
-          <button onclick="window.print()">
-            Print / Save as PDF
-          </button>
-          <p>
-            សូមជ្រើសរើស "Save as PDF" ក្នុង Print Destination
-            ដើម្បីរក្សាទុកឯកសារ PDF។
-          </p>
-        </div>
-
-        <h1>ប្រព័ន្ធស្ទង់មតិការអភិវឌ្ឍសមត្ថភាពបុគ្គលិក</h1>
         <div class="subtitle">
-          Employee Development Survey (EPDS) - Report
+          Employee Development Survey (EPDS)
         </div>
 
-        <div class="report-meta">
-          <span>Survey ID: ${escapeHTML(summary.surveyId || "EPDS-2026")}</span>
-          <span>Export Date: ${escapeHTML(formatDateTime(new Date()))}</span>
+        <div class="meta">
+          <span>
+            Survey ID:
+            ${escapeHTML(
+              summary.surveyId || "EPDS-2026"
+            )}
+          </span>
+
+          <span>
+            Export Date:
+            ${escapeHTML(formatDateTime(new Date()))}
+          </span>
         </div>
 
         <h2>សេចក្តីសង្ខេប / Summary</h2>
+
         ${summaryHTML}
 
         <h2>លទ្ធផលវិភាគ / Analytics</h2>
+
         ${analyticsHTML || "<p>No analytics data available.</p>"}
 
         <h2>ចម្លើយស្ទង់មតិ / Survey Responses</h2>
 
-        <table>
+        <table class="response-table">
+
           <thead>
             <tr>
               <th>No.</th>
@@ -1404,39 +1739,282 @@
           <tbody>
             ${tableRows}
           </tbody>
+
         </table>
 
         <div class="footer">
           Generated by EPDS - Employee Development Survey
         </div>
 
-        <script>
-          window.addEventListener("load", () => {
-            document.fonts.ready.then(() => {
-              // Keep the print window open for the user.
-            });
-          });
-        <\/script>
-      </body>
-      </html>
+      </div>
     `;
-
-    printWindow.document.open();
-    printWindow.document.write(documentHTML);
-    printWindow.document.close();
-
-    showMessage(
-      "responseMessage",
-      "បានបើកផ្ទាំង PDF Report។ សូមចុច Print / Save as PDF ដើម្បីរក្សាទុក។",
-      "success"
-    );
   }
 
-  /* =========================
+  /* ========================================================
+     PDF EXPORT - KHMER + iOS SHARE SHEET
+  ======================================================== */
+
+  async function exportPDF() {
+    if (!allResponses.length) {
+      showMessage(
+        "responseMessage",
+        "មិនមានទិន្នន័យសម្រាប់ Export ទេ។"
+      );
+
+      return;
+    }
+
+    setButtonLoading(
+      "exportPdfBtn",
+      true,
+      "កំពុងបង្កើត PDF..."
+    );
+
+    let reportContainer = null;
+
+    try {
+      const html2pdf = await loadPDFLibrary();
+
+      reportContainer =
+        document.createElement("div");
+
+      reportContainer.style.cssText = `
+        position:absolute;
+        left:-10000px;
+        top:0;
+        width:1100px;
+        background:#ffffff;
+        z-index:-1;
+      `;
+
+      reportContainer.innerHTML = `
+        <style>
+
+          @import url(
+            'https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&family=Noto+Sans+Khmer:wght@400;500;700&display=swap'
+          );
+
+          #epdsPdfReport {
+            box-sizing:border-box;
+            width:1100px;
+            padding:25px;
+            background:#ffffff;
+            color:#1f2937;
+            font-family:
+              'Battambang',
+              'Noto Sans Khmer',
+              sans-serif;
+            font-size:10px;
+          }
+
+          #epdsPdfReport * {
+            box-sizing:border-box;
+          }
+
+          #epdsPdfReport h1 {
+            text-align:center;
+            font-size:20px;
+            margin:0 0 8px;
+          }
+
+          #epdsPdfReport h2 {
+            font-size:14px;
+            margin:20px 0 10px;
+            border-bottom:1px solid #cbd5e1;
+            padding-bottom:6px;
+          }
+
+          #epdsPdfReport h3 {
+            font-size:12px;
+          }
+
+          #epdsPdfReport .subtitle {
+            text-align:center;
+            margin-bottom:18px;
+            color:#64748b;
+          }
+
+          #epdsPdfReport .meta {
+            display:flex;
+            justify-content:space-between;
+            margin-bottom:15px;
+          }
+
+          #epdsPdfReport .summary-grid {
+            display:grid;
+            grid-template-columns:repeat(4,1fr);
+            gap:8px;
+          }
+
+          #epdsPdfReport .summary-grid > div {
+            border:1px solid #cbd5e1;
+            padding:8px;
+          }
+
+          #epdsPdfReport .summary-grid strong,
+          #epdsPdfReport .summary-grid span {
+            display:block;
+          }
+
+          #epdsPdfReport .summary-grid span {
+            font-size:13px;
+            font-weight:bold;
+          }
+
+          #epdsPdfReport table {
+            width:100%;
+            border-collapse:collapse;
+            margin-bottom:12px;
+            table-layout:auto;
+          }
+
+          #epdsPdfReport th,
+          #epdsPdfReport td {
+            border:1px solid #cbd5e1;
+            padding:5px;
+            text-align:left;
+            vertical-align:top;
+            overflow-wrap:anywhere;
+            word-break:normal;
+          }
+
+          #epdsPdfReport th {
+            background:#f1f5f9;
+            font-weight:bold;
+          }
+
+          #epdsPdfReport .analytics-section {
+            margin-bottom:15px;
+          }
+
+          #epdsPdfReport .analytics-section table {
+            max-width:600px;
+          }
+
+          #epdsPdfReport .footer {
+            margin-top:20px;
+            text-align:right;
+            color:#64748b;
+          }
+
+        </style>
+
+        ${buildPDFReportHTML()}
+      `;
+
+      document.body.appendChild(reportContainer);
+
+      // Wait for fonts
+      if (document.fonts?.ready) {
+        await document.fonts.ready;
+      }
+
+      // Allow layout and images to settle
+      await new Promise(resolve => {
+        window.setTimeout(resolve, 500);
+      });
+
+      const reportElement =
+        reportContainer.querySelector(
+          "#epdsPdfReport"
+        );
+
+      if (!reportElement) {
+        throw new Error(
+          "មិនអាចបង្កើតផ្ទាំង PDF Report បានទេ។"
+        );
+      }
+
+      const pdfBlob = await html2pdf()
+        .set({
+          margin: [8, 8, 8, 8],
+
+          image: {
+            type: "jpeg",
+            quality: 0.95
+          },
+
+          html2canvas: {
+            scale: 1.5,
+            useCORS: true,
+            backgroundColor: "#ffffff",
+            logging: false,
+            windowWidth: 1100
+          },
+
+          jsPDF: {
+            unit: "mm",
+            format: "a4",
+            orientation: "landscape"
+          },
+
+          pagebreak: {
+            mode: ["css", "legacy"],
+            avoid: [
+              "tr",
+              ".analytics-section"
+            ]
+          }
+        })
+        .from(reportElement)
+        .toPdf()
+        .get("pdf")
+        .then(pdf => pdf.output("blob"));
+
+      const filename =
+        `EPDS_Report_${getTodayISO()}.pdf`;
+
+      const result = await shareOrDownload(
+        pdfBlob,
+        filename,
+        "application/pdf"
+      );
+
+      if (result === "cancelled") {
+        showMessage(
+          "responseMessage",
+          "អ្នកបានបោះបង់ការរក្សាទុក PDF។"
+        );
+
+        return;
+      }
+
+      showMessage(
+        "responseMessage",
+        "បានបង្កើត PDF រួចរាល់។ ប្រសិនបើប្រើ iPhone សូមជ្រើសរើស Save to Files ក្នុង Share Sheet។",
+        "success"
+      );
+
+    } catch (error) {
+      console.error(
+        "PDF Export Error:",
+        error
+      );
+
+      showMessage(
+        "responseMessage",
+        error.message ||
+        "មានបញ្ហាក្នុងការបង្កើត PDF។"
+      );
+
+    } finally {
+      if (reportContainer) {
+        reportContainer.remove();
+      }
+
+      setButtonLoading(
+        "exportPdfBtn",
+        false
+      );
+    }
+  }
+
+  /* ========================================================
      EVENT LISTENERS
-  ========================= */
+  ======================================================== */
 
   function bindEvents() {
+
     $("loginForm")?.addEventListener(
       "submit",
       handleLogin
@@ -1452,14 +2030,20 @@
       handleSurveySubmit
     );
 
-    $("showRegisterBtn")?.addEventListener("click", () => {
-      clearMessage("registerMessage");
-      showView("registerView");
-    });
+    $("showRegisterBtn")?.addEventListener(
+      "click",
+      () => {
+        clearMessage("registerMessage");
+        showView("registerView");
+      }
+    );
 
-    $("backToLoginBtn")?.addEventListener("click", () => {
-      showView("loginView");
-    });
+    $("backToLoginBtn")?.addEventListener(
+      "click",
+      () => {
+        showView("loginView");
+      }
+    );
 
     $("employeeLogoutBtn")?.addEventListener(
       "click",
@@ -1481,19 +2065,19 @@
       filterResponses
     );
 
-    // New export buttons
+    // PDF Export
     $("exportPdfBtn")?.addEventListener(
       "click",
       exportPDF
     );
 
+    // Excel Export
     $("exportExcelBtn")?.addEventListener(
       "click",
       exportExcel
     );
 
-    // Old CSV button intentionally has no event listener.
-
+    // Response Detail
     $("responsesTableBody")?.addEventListener(
       "click",
       event => {
@@ -1509,6 +2093,7 @@
       }
     );
 
+    // Close Modal
     $("closeResponseModalBtn")?.addEventListener(
       "click",
       closeResponseModal
@@ -1519,16 +2104,19 @@
       closeResponseModal
     );
 
-    document.addEventListener("keydown", event => {
-      if (event.key === "Escape") {
-        closeResponseModal();
+    document.addEventListener(
+      "keydown",
+      event => {
+        if (event.key === "Escape") {
+          closeResponseModal();
+        }
       }
-    });
+    );
   }
 
-  /* =========================
+  /* ========================================================
      APP INITIALIZATION
-  ========================= */
+  ======================================================== */
 
   async function initializeApp() {
     bindEvents();
