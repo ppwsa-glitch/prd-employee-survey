@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="km">
 <head>
@@ -119,15 +118,10 @@
           </form>
 
           <div class="login-footer">
-            <span>មិនទាន់មានគណនី?</span>
-
-            <button
-              type="button"
-              id="showRegisterBtn"
-              class="text-button"
-            >
-              ចុះឈ្មោះគណនីដំបូង
-            </button>
+            <span>
+              Password ដំបូងគឺ Password បណ្តោះអាសន្នពី HR។
+              ប្រសិនបើភ្លេច Password សូមទាក់ទង HR Admin។
+            </span>
           </div>
         </div>
 
@@ -139,60 +133,37 @@
     </section>
 
 
-    <!-- ================= REGISTRATION VIEW ================= -->
-    <section id="registerView" class="view hidden">
+    <!-- ================= CHANGE PASSWORD VIEW ================= -->
+    <section id="changePasswordView" class="view hidden">
       <div class="login-wrapper">
 
         <div class="app-brand">
           <div class="brand-icon">EPDS</div>
 
           <div>
-            <h1>Account Registration</h1>
-            <p>Employee Account Activation</p>
+            <h1>Change Password</h1>
+            <p>First Login Security</p>
           </div>
         </div>
 
         <div class="login-card">
           <div class="section-heading">
-            <h2>បង្កើតគណនីបុគ្គលិក</h2>
-            <p>សូមបញ្ចូល Staff ID និង Activation Code</p>
+            <h2>ប្តូរ Password ថ្មី</h2>
+            <p>
+              Password បណ្តោះអាសន្នត្រូវតែប្តូរមុនចូលប្រើប្រាស់។
+              សូមបង្កើត Password ថ្មីយ៉ាងហោចណាស់ ៨ តួអក្សរ។
+            </p>
           </div>
 
-          <form id="registerForm">
+          <form id="changePasswordForm">
 
             <div class="form-group">
-              <label for="registerStaffId">Staff ID</label>
-
-              <input
-                type="text"
-                id="registerStaffId"
-                placeholder="បញ្ចូល Staff ID"
-                required
-              >
-            </div>
-
-            <div class="form-group">
-              <label for="activationCode">
-                Activation Code
-              </label>
-
-              <input
-                type="text"
-                id="activationCode"
-                placeholder="បញ្ចូល Activation Code"
-                required
-              >
-            </div>
-
-            <div class="form-group">
-              <label for="registerPassword">
-                បង្កើត Password
-              </label>
+              <label for="newPassword">Password ថ្មី</label>
 
               <input
                 type="password"
-                id="registerPassword"
-                placeholder="បង្កើត Password ថ្មី"
+                id="newPassword"
+                placeholder="បញ្ចូល Password ថ្មី"
                 autocomplete="new-password"
                 minlength="8"
                 required
@@ -200,14 +171,14 @@
             </div>
 
             <div class="form-group">
-              <label for="confirmPassword">
-                បញ្ជាក់ Password
+              <label for="confirmNewPassword">
+                បញ្ជាក់ Password ថ្មី
               </label>
 
               <input
                 type="password"
-                id="confirmPassword"
-                placeholder="បញ្ចូល Password ម្ដងទៀត"
+                id="confirmNewPassword"
+                placeholder="បញ្ចូល Password ថ្មីម្ដងទៀត"
                 autocomplete="new-password"
                 minlength="8"
                 required
@@ -215,17 +186,17 @@
             </div>
 
             <div
-              id="registerMessage"
+              id="changePasswordMessage"
               class="message"
               role="alert"
             ></div>
 
             <button
               type="submit"
-              id="registerBtn"
+              id="changePasswordBtn"
               class="btn btn-primary"
             >
-              បង្កើតគណនី
+              ប្តូរ Password
             </button>
 
           </form>
@@ -233,14 +204,13 @@
           <div class="login-footer">
             <button
               type="button"
-              id="backToLoginBtn"
+              id="cancelChangePasswordBtn"
               class="text-button"
             >
-              ← ត្រឡប់ទៅ Login
+              ← ចាកចេញ / ត្រឡប់ទៅ Login
             </button>
           </div>
         </div>
-
       </div>
     </section>
 
@@ -777,6 +747,86 @@
             </div>
 
           </div>
+        </section>
+
+
+        <!-- EMPLOYEE ACCOUNTS -->
+        <section class="dashboard-section">
+
+          <div class="section-title">
+            <div>
+              <h3>Employee Accounts</h3>
+              <p>បង្កើតគណនី និង Reset Password (Password បណ្តោះអាសន្ន៖ PRD001)</p>
+            </div>
+          </div>
+
+          <form id="createEmployeeForm" class="inline-form-grid">
+
+            <div class="form-group">
+              <label for="newStaffId">Staff ID *</label>
+              <input type="text" id="newStaffId" placeholder="PPWSA-0000" maxlength="40" required>
+            </div>
+
+            <div class="form-group">
+              <label for="newEmployeeName">ឈ្មោះបុគ្គលិក *</label>
+              <input type="text" id="newEmployeeName" placeholder="EMPLOYEE NAME" maxlength="120" required>
+            </div>
+
+            <div class="form-group">
+              <label for="newDepartment">អង្គភាព</label>
+              <input type="text" id="newDepartment" maxlength="120">
+            </div>
+
+            <div class="form-group">
+              <label for="newOffice">Office</label>
+              <input type="text" id="newOffice" maxlength="120">
+            </div>
+
+            <div class="form-group">
+              <label for="newPosition">តួនាទី</label>
+              <input type="text" id="newPosition" maxlength="120">
+            </div>
+
+            <div class="form-group form-action">
+              <button type="submit" id="createEmployeeBtn" class="btn btn-primary">
+                + បង្កើតគណនី
+              </button>
+            </div>
+
+          </form>
+
+          <div class="table-toolbar">
+            <input
+              type="search"
+              id="employeeSearch"
+              placeholder="ស្វែងរកបុគ្គលិក Staff ID ឬឈ្មោះ..."
+              autocomplete="off"
+            >
+          </div>
+
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Staff ID</th>
+                  <th>ឈ្មោះបុគ្គលិក</th>
+                  <th>អង្គភាព</th>
+                  <th>ស្ថានភាពគណនី</th>
+                  <th>Password</th>
+                  <th>សកម្មភាព</th>
+                </tr>
+              </thead>
+
+              <tbody id="employeesTableBody">
+                <tr>
+                  <td colspan="6" class="empty-state">មិនទាន់មានទិន្នន័យ</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div id="employeeMessage" class="message" role="alert"></div>
+
         </section>
 
 
