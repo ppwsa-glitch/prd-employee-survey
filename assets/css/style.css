@@ -1,4 +1,3 @@
-
 /* =========================================================
    EPDS - Employee Development Survey
    Professional UI Styles v2.2
@@ -80,7 +79,7 @@ textarea {
 ========================= */
 
 #loginView,
-#registerView {
+#changePasswordView {
   background:
     radial-gradient(circle at 15% 15%, rgba(80, 168, 245, .15), transparent 35%),
     radial-gradient(circle at 85% 85%, rgba(80, 168, 245, .12), transparent 35%),
@@ -263,7 +262,7 @@ textarea {
 }
 
 #loginBtn,
-#registerBtn {
+#changePasswordBtn {
   width: 100%;
   padding: 14px;
   margin-top: 5px;
@@ -944,7 +943,7 @@ textarea {
   }
 
   #loginView,
-  #registerView {
+  #changePasswordView {
     padding: 25px 15px;
   }
 
@@ -1117,4 +1116,62 @@ textarea {
     font-size: 11px;
   }
 
+}
+
+
+/* =========================
+   EMPLOYEE ACCOUNT MANAGEMENT
+========================= */
+
+.inline-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 15px;
+  margin-bottom: 10px;
+}
+
+.inline-form-grid .form-action {
+  display: flex;
+  align-items: flex-end;
+}
+
+.inline-form-grid .form-action .btn {
+  width: 100%;
+  padding: 13px 20px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.status-badge.ok {
+  color: #067647;
+  background: #ecfdf3;
+}
+
+.status-badge.pending {
+  color: #b54708;
+  background: #fffaeb;
+}
+
+.status-badge.off {
+  color: #b42318;
+  background: #fef3f2;
+}
+
+@media (max-width: 900px) {
+  .inline-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .inline-form-grid {
+    grid-template-columns: 1fr;
+  }
 }
