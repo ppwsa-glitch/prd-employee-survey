@@ -1,12 +1,12 @@
-
 /* =========================================================
    EPDS - Employee Development Survey
-   Frontend Application v3.2
-   Backend: Google Apps Script v3.0
+   Frontend Application v4.0
+   Backend: Google Apps Script v4.0
 
    Features:
    - Employee / Admin Unified Login
-   - Employee Account Registration
+   - Pre-created accounts + forced password change (PRD001)
+   - Admin: create account / reset password
    - Employee Survey Submission
    - Admin Dashboard & Analytics
    - Response Search & Details
@@ -40,7 +40,7 @@
 
   const views = [
     "loginView",
-    "registerView",
+    "changePasswordView",
     "employeeView",
     "adminView"
   ];
@@ -264,6 +264,7 @@
 
   function logout() {
     clearSession();
+    allEmployees = [];
     clearPendingExport();
     showView("loginView");
 
@@ -308,7 +309,7 @@
       }
 
       if (result.role === "EMPLOYEE") {
-        const profile = result.profile || {};
+        const profile = result.profile || result.employee || {};
 
         const user = {
           role: "EMPLOYEE",
@@ -318,8 +319,15 @@
           position: profile.position || ""
         };
 
+        user.mustChangePassword = Boolean(result.mustChangePassword);
+
         saveSession(result.token, user);
-        showEmployeeDashboard(user);
+
+        if (user.mustChangePassword) {
+          showChangePasswordView();
+        } else {
+          showEmployeeDashboard(user);
+        }
 
       } else if (result.role === "ADMIN") {
         const user = {
@@ -390,78 +398,245 @@
   }
 
   /* ========================================================
-     ACCOUNT REGISTRATION
+     FORCED PASSWORD CHANGE (FIRST LOGIN / AFTER RESET)
   ======================================================== */
 
-  async function handleRegistration(event) {
+  const TEMP_PASSWORD = "PRD001";
+
+  function showChangePasswordView() {
+    $("changePasswordForm")?.reset();
+    clearMessage("changePasswordMessage");
+    showView("changePasswordView");
+  }
+
+  async function handleChangePassword(event) {
     event.preventDefault();
-    clearMessage("registerMessage");
+    clearMessage("changePasswordMessage");
 
-    const staffId = $("registerStaffId")?.value.trim();
-    const activationCode = $("activationCode")?.value.trim();
-    const password = $("registerPassword")?.value;
-    const confirmPassword = $("confirmPassword")?.value;
-
-    if (!staffId || !activationCode || !password || !confirmPassword) {
-      showMessage(
-        "registerMessage",
-        "សូមបំពេញព័ត៌មានទាំងអស់។"
-      );
+    if (!currentToken || currentUser?.role !== "EMPLOYEE") {
+      logout();
       return;
     }
 
-    if (password !== confirmPassword) {
-      showMessage(
-        "registerMessage",
-        "Password ទាំងពីរមិនដូចគ្នាទេ។"
-      );
+    const newPassword = $("newPassword")?.value || "";
+    const confirmPassword = $("confirmNewPassword")?.value || "";
+
+    if (!newPassword || !confirmPassword) {
+      showMessage("changePasswordMessage", "សូមបំពេញព័ត៌មានទាំងអស់។");
       return;
     }
 
-    if (password.length < 8) {
+    if (newPassword.length < 8) {
       showMessage(
-        "registerMessage",
+        "changePasswordMessage",
         "Password ត្រូវមានយ៉ាងហោចណាស់ ៨ តួអក្សរ។"
       );
       return;
     }
 
-    setButtonLoading(
-      "registerBtn",
-      true,
-      "កំពុងបង្កើតគណនី..."
-    );
+    if (newPassword !== confirmPassword) {
+      showMessage("changePasswordMessage", "Password ទាំងពីរមិនដូចគ្នាទេ។");
+      return;
+    }
+
+    if (newPassword === TEMP_PASSWORD) {
+      showMessage(
+        "changePasswordMessage",
+        "មិនអាចប្រើ Password បណ្តោះអាសន្នជា Password ថ្មីបានទេ។"
+      );
+      return;
+    }
+
+    setButtonLoading("changePasswordBtn", true, "កំពុងប្តូរ Password...");
 
     try {
-      await api("activateAccount", {
-        staffId,
-        activationCode,
-        password
+      await api("changePassword", {
+        token: currentToken,
+        newPassword
       });
 
-      $("registerForm")?.reset();
+      currentUser.mustChangePassword = false;
+      saveSession(currentToken, currentUser);
+
+      $("changePasswordForm")?.reset();
+      showEmployeeDashboard(currentUser);
+
+    } catch (error) {
+      showMessage("changePasswordMessage", error.message);
+
+    } finally {
+      setButtonLoading("changePasswordBtn", false);
+    }
+  }
+
+  /* ========================================================
+     ADMIN - EMPLOYEE ACCOUNTS (CREATE / RESET)
+  ======================================================== */
+
+  let allEmployees = [];
+
+  function renderEmployees(rows) {
+    const tbody = $("employeesTableBody");
+    if (!tbody) return;
+
+    if (!rows || !rows.length) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="empty-state">មិនទាន់មានទិន្នន័យ</td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = rows.map(row => {
+      const active =
+        String(row.accountStatus || "").toLowerCase() === "active";
+
+      const accountBadge = active
+        ? '<span class="status-badge ok">ACTIVE</span>'
+        : '<span class="status-badge off">INACTIVE</span>';
+
+      let passwordBadge;
+
+      if (!row.hasPassword) {
+        passwordBadge =
+          '<span class="status-badge off">មិនទាន់មាន</span>';
+      } else if (row.mustChangePassword) {
+        passwordBadge =
+          '<span class="status-badge pending">រង់ចាំប្តូរ</span>';
+      } else {
+        passwordBadge =
+          '<span class="status-badge ok">បានប្តូររួច</span>';
+      }
+
+      return `
+        <tr>
+          <td>${escapeHTML(row.staffId || "-")}</td>
+          <td>${escapeHTML(row.employeeName || "-")}</td>
+          <td>${escapeHTML(row.department || "-")}</td>
+          <td>${accountBadge}</td>
+          <td>${passwordBadge}</td>
+          <td>
+            <button
+              type="button"
+              class="btn btn-small btn-outline reset-password-btn"
+              data-staff-id="${escapeHTML(row.staffId)}"
+              data-name="${escapeHTML(row.employeeName)}"
+            >
+              Reset Password
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  function filterEmployees() {
+    const keyword =
+      $("employeeSearch")?.value.trim().toLowerCase() || "";
+
+    if (!keyword) {
+      renderEmployees(allEmployees);
+      return;
+    }
+
+    renderEmployees(allEmployees.filter(row =>
+      [row.staffId, row.employeeName, row.department, row.position]
+        .join(" ")
+        .toLowerCase()
+        .includes(keyword)
+    ));
+  }
+
+  async function refreshEmployees() {
+    const rows = await api("adminEmployees", { token: currentToken });
+    allEmployees = normalizeResponseRows(rows);
+    filterEmployees();
+  }
+
+  async function handleCreateEmployee(event) {
+    event.preventDefault();
+    clearMessage("employeeMessage");
+
+    if (!currentToken || currentUser?.role !== "ADMIN") {
+      logout();
+      return;
+    }
+
+    const staffId = $("newStaffId")?.value.trim();
+    const employeeName = $("newEmployeeName")?.value.trim();
+
+    if (!staffId || !employeeName) {
+      showMessage("employeeMessage", "សូមបញ្ចូល Staff ID និងឈ្មោះបុគ្គលិក។");
+      return;
+    }
+
+    setButtonLoading("createEmployeeBtn", true, "កំពុងបង្កើត...");
+
+    try {
+      await api("adminCreateEmployee", {
+        token: currentToken,
+        staffId,
+        employeeName,
+        department: $("newDepartment")?.value.trim() || "",
+        office: $("newOffice")?.value.trim() || "",
+        position: $("newPosition")?.value.trim() || ""
+      });
+
+      $("createEmployeeForm")?.reset();
 
       showMessage(
-        "registerMessage",
-        "បង្កើតគណនីបានជោគជ័យ! សូមចូលប្រើប្រាស់ប្រព័ន្ធ។",
+        "employeeMessage",
+        `បានបង្កើតគណនី ${staffId} រួចរាល់។ Password បណ្តោះអាសន្ន៖ ${TEMP_PASSWORD} (ត្រូវប្តូរពេល Login ដំបូង)`,
         "success"
       );
 
-      window.setTimeout(() => {
-        showView("loginView");
-
-        if ($("loginIdentifier")) {
-          $("loginIdentifier").value = staffId;
-        }
-
-        clearMessage("registerMessage");
-      }, 1800);
+      await refreshEmployees();
 
     } catch (error) {
-      showMessage("registerMessage", error.message);
+      showMessage("employeeMessage", error.message);
 
     } finally {
-      setButtonLoading("registerBtn", false);
+      setButtonLoading("createEmployeeBtn", false);
+    }
+  }
+
+  async function handleEmployeeTableClick(event) {
+    const button = event.target.closest(".reset-password-btn");
+    if (!button) return;
+
+    const staffId = button.dataset.staffId;
+    const name = button.dataset.name || "";
+
+    if (!staffId) return;
+
+    const confirmed = window.confirm(
+      `Reset Password របស់ ${name} (${staffId}) ទៅ ${TEMP_PASSWORD} ?\n` +
+      "បុគ្គលិកត្រូវប្តូរ Password នៅពេល Login បន្ទាប់។"
+    );
+
+    if (!confirmed) return;
+
+    clearMessage("employeeMessage");
+    button.disabled = true;
+
+    try {
+      await api("adminResetPassword", {
+        token: currentToken,
+        staffId
+      });
+
+      showMessage(
+        "employeeMessage",
+        `បាន Reset Password របស់ ${staffId} ទៅ ${TEMP_PASSWORD} រួចរាល់។`,
+        "success"
+      );
+
+      await refreshEmployees();
+
+    } catch (error) {
+      showMessage("employeeMessage", error.message);
+      button.disabled = false;
     }
   }
 
@@ -579,11 +754,14 @@
     clearMessage("responseMessage");
 
     try {
-      const [summary, analytics, responses] = await Promise.all([
+      const [summary, analytics, responses, employees] = await Promise.all([
         api("adminSummary", { token: currentToken }),
         api("adminAnalytics", { token: currentToken }),
-        api("adminResponses", { token: currentToken })
+        api("adminResponses", { token: currentToken }),
+        api("adminEmployees", { token: currentToken })
       ]);
+
+      allEmployees = normalizeResponseRows(employees);
 
       dashboardSummary = summary || {};
       dashboardAnalytics = analytics || {};
@@ -592,6 +770,7 @@
       renderSummary(dashboardSummary);
       renderAnalytics(dashboardAnalytics);
       renderResponses(allResponses);
+      filterEmployees();
 
     } catch (error) {
       showMessage("responseMessage", error.message);
@@ -1787,9 +1966,9 @@
   function bindEvents() {
     $("loginForm")?.addEventListener("submit", handleLogin);
 
-    $("registerForm")?.addEventListener(
+    $("changePasswordForm")?.addEventListener(
       "submit",
-      handleRegistration
+      handleChangePassword
     );
 
     $("surveyForm")?.addEventListener(
@@ -1797,14 +1976,19 @@
       handleSurveySubmit
     );
 
-    $("showRegisterBtn")?.addEventListener("click", () => {
-      clearMessage("registerMessage");
-      showView("registerView");
-    });
+    $("cancelChangePasswordBtn")?.addEventListener("click", logout);
 
-    $("backToLoginBtn")?.addEventListener("click", () => {
-      showView("loginView");
-    });
+    $("createEmployeeForm")?.addEventListener(
+      "submit",
+      handleCreateEmployee
+    );
+
+    $("employeeSearch")?.addEventListener("input", filterEmployees);
+
+    $("employeesTableBody")?.addEventListener(
+      "click",
+      handleEmployeeTableClick
+    );
 
     $("employeeLogoutBtn")?.addEventListener("click", logout);
     $("adminLogoutBtn")?.addEventListener("click", logout);
@@ -1874,7 +2058,11 @@
     }
 
     if (currentUser.role === "EMPLOYEE") {
-      showEmployeeDashboard(currentUser);
+      if (currentUser.mustChangePassword) {
+        showChangePasswordView();
+      } else {
+        showEmployeeDashboard(currentUser);
+      }
       return;
     }
 
